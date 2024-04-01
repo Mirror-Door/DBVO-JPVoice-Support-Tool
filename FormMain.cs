@@ -772,7 +772,8 @@ namespace DBVO_JPVoice_Tool
 
             ProgressStart("Lipファイル作成中", 0, strArrWavFiles.Length);
 
-            const int iSplitCount = 2;
+            const int iSplitCountSetting = 2;
+            int iSplitCount = strArrWavFiles.Length >= iSplitCountSetting ? iSplitCountSetting : 1;
             int ichunkSize = (strArrWavFiles.Length / iSplitCount) + (strArrWavFiles.Length % iSplitCount);
 
             var chunkWavFiles = strArrWavFiles.Select((v, i) => new { v, i })
@@ -793,14 +794,19 @@ namespace DBVO_JPVoice_Tool
             }
 
             CancelToken = new CancellationTokenSource();
-            //await Task.Run(() => SubThreadMakeLip(lipData));
-            await Task.Run(() => Parallel.Invoke(
-                () => iCount[0] = SubThreadMakeLip(lipData[0])
-                , () => iCount[1] = SubThreadMakeLip(lipData[1])
-                //,() => iCount[2] = SubThreadMakeLip(lipData[2])
-                //,() => iCount[3] = SubThreadMakeLip(lipData[3])
-                //,() => iCount[4] = SubThreadMakeLip(lipData[4])
-                ));
+            if(iSplitCount == 1)
+            {
+                await Task.Run(() => Parallel.Invoke(
+                    () => iCount[0] = SubThreadMakeLip(lipData[0])
+                    ));
+            }
+            else
+            {
+                await Task.Run(() => Parallel.Invoke(
+                    () => iCount[0] = SubThreadMakeLip(lipData[0])
+                    , () => iCount[1] = SubThreadMakeLip(lipData[1])
+                    ));
+            }
 
             if (Directory.Exists(strTemporaryPath)) { Directory.Delete(strTemporaryPath, true); }
 
@@ -868,7 +874,8 @@ namespace DBVO_JPVoice_Tool
 
             ProgressStart("FUZファイルへ変換中", 0, strArrWavFiles.Length);
 
-            const int iSplitCount = 2;
+            const int iSplitCountSetting = 2;
+            int iSplitCount = strArrWavFiles.Length >= iSplitCountSetting ? iSplitCountSetting : 1;
             int ichunkSize = (strArrWavFiles.Length / iSplitCount) + (strArrWavFiles.Length % iSplitCount);
 
             var chunkWavFiles = strArrWavFiles.Select((v, i) => new { v, i })
@@ -891,13 +898,20 @@ namespace DBVO_JPVoice_Tool
             }
 
             CancelToken = new CancellationTokenSource();
-            await Task.Run(() => Parallel.Invoke(
-                () => iCount[0] = SubThreadMakeFuz(makeData[0])
-                , () => iCount[1] = SubThreadMakeFuz(makeData[1])
-                //,() => iCount[2] = SubThreadMakeLip(lipData[2])
-                //,() => iCount[3] = SubThreadMakeLip(lipData[3])
-                //,() => iCount[4] = SubThreadMakeLip(lipData[4])
-                ));
+            if (iSplitCount == 1)
+            {
+                await Task.Run(() => Parallel.Invoke(
+                    () => iCount[0] = SubThreadMakeFuz(makeData[0])
+                    ));
+            }
+            else
+            {
+                await Task.Run(() => Parallel.Invoke(
+                    () => iCount[0] = SubThreadMakeFuz(makeData[0])
+                    , () => iCount[1] = SubThreadMakeFuz(makeData[1])
+                    ));
+            }
+
 
             if (Directory.Exists(strTemporaryPath)) { Directory.Delete(strTemporaryPath, true); }
 
@@ -1138,8 +1152,7 @@ namespace DBVO_JPVoice_Tool
             labelYakitori.Text = "OK";
             labelYakitori.BackColor = Color.Green;
 
-            buttonMakeFuz.Enabled = labelYakitori.Text == "OK";
-            buttonBatch.Enabled = labelFaceFX.Text == "OK" && labelYakitori.Text == "OK" && textBoxBatch.Text.Length > 0;
+            EnabledButtons(true, false);
         }
 
         private void ButtonYakitoriOpen_Click(object sender, EventArgs e)
@@ -1199,8 +1212,7 @@ namespace DBVO_JPVoice_Tool
             labelFaceFX.Text = "OK";
             labelFaceFX.BackColor = Color.Green;
 
-            buttonMakeLip.Enabled = labelFaceFX.Text == "OK";
-            buttonBatch.Enabled = labelFaceFX.Text == "OK" && labelYakitori.Text == "OK" && textBoxBatch.Text.Length > 0;
+            EnabledButtons(true, false);
         }
 
         private void ButtonFaceFXOpen_Click(object sender, EventArgs e)
@@ -1211,14 +1223,12 @@ namespace DBVO_JPVoice_Tool
 
         private void LabelFaceFX_TextChanged(object sender, EventArgs e)
         {
-            buttonMakeLip.Enabled = labelFaceFX.Text == "OK";
-            buttonBatch.Enabled = (labelFaceFX.Text == "OK" && labelYakitori.Text == "OK");
+            //EnabledButtons(true, false);
         }
 
         private void LabelYakitori_TextChanged(object sender, EventArgs e)
         {
-            buttonMakeFuz.Enabled = labelYakitori.Text == "OK";
-            buttonBatch.Enabled = (labelFaceFX.Text == "OK" && labelYakitori.Text == "OK");
+            //EnabledButtons(true, false);
         }
 
         //一括処理
