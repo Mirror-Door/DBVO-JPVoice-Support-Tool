@@ -348,7 +348,7 @@ namespace DBVO_JPVoice_Tool
         {
             double[] dParams = { 1, 0, 1, 1 };
 
-            string strParams = _params switch { "" => _params, _ => textBoxParam.Text };
+            string strParams = _params switch { "" => textBoxParam.Text, _ => _params };
             //string strParams = _params != string.Empty ? _params : textBoxParam.Text;
 
             var strArrParam = strParams.Split(',');
