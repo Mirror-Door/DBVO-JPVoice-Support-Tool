@@ -158,9 +158,33 @@ WAVファイルから口パクに必要となるLIPファイルを作成しま�
 
 </value>
   </data>
+  <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
+  <data name="buttonSampleText.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+    <value>
+        iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6
+        JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAACXBIWXMAAA68AAAOvAGVvHJJAAABKElE
+        QVQ4T2OQb5DfLdMko8tALgAa8B+IfwPxTJVWFVGoMPEAagAE18u/k2uQK9eq12JjiNvpxhCz6y1DzM7P
+        QHoDQ/R2dagWVIBiABQDDbkp1ygXyhB6jJMhfJcmQ9yuJqBBLxgSdshCtSEATgPq5XwY7PezMITuEALa
+        LskQu6sZ6JLVUG0IgKIZ6gX5ensOhuhtfGCNMByzQ58hdudHqDYEgGpGBGL0tiyGsJ06KJpBOGqLAdAF
+        r6HaEADo1G3yTfKaUC4D0KnLGWJ3t2IYELO7BWjACqgqPCBurzLQkGdgQ6J2Am0FOh2kORYYiDG7g6Gq
+        CACQISDbYna9Ajsb5Kq4XWFA+iUweu2gqsgAsbttIC7Z6QQVIQMMIkN22QPDpwTKGzDAwAAAuaiXgzcZ
+        pnIAAAAASUVORK5CYII=
+</value>
+  </data>
   <metadata name="menuStrip1.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>108, 17</value>
   </metadata>
+  <data name="toolStripMenuDelXmlSpace.ToolTipText" xml:space="preserve">
+    <value>機能：
+xTranslatorなどの翻訳用のxmlファイルを読み込んで、半角スペースを削除します。
+DBVOの現在の仕様では、テキストに空白に続いてカッコや記号が入っている場合に、読んでくれません。
+それに対処するための機能です。
+
+ファイルの使用用途：
+ここで作成したXMLファイルでDBVO辞書(JSON)を作ることができます。
+またプラグイン(esp)もこのファイルで日本語化してください。
+</value>
+  </data>
   <data name="ToolStripMenuXmltoJson.ToolTipText" xml:space="preserve">
     <value>機能：
 xTranslatorなどの翻訳用のxmlファイルを読み込んで、プレイヤーの会話部分のみを抽出しJSONファイル形式の辞書ファイルを作成します
@@ -173,7 +197,20 @@ xTranslatorなどの翻訳用のxmlファイルを読み込んで、プレイヤ
 ここで作成した辞書ファイルは「Dragonborn Voice Over」にて、日本語の文章と音声ファイル名のマッチングに使用されます
 またWAVファイルを作るためにも使用されます</value>
   </data>
-  <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
+  <data name="ToolStripMenuMakeWavFromText.ToolTipText" xml:space="preserve">
+    <value>機能：
+これはUI、およびDBVOに限定されずにWAVを作成するための機能です。
+
+|(パイプ)区切りのCSV形式(*.txt、*.csv)のファイルで、書式は以下の通りです。
+
+VoiceSoftID|SpeakerID|Text|FileName|Style|SubFolder|VoiceParameter
+
+必須項目は左の3つ(Textまで)で、あとは省略可能
+ダブルクォーテーションはあってもなくても可
+例：
+0|43|"こんにちは"
+100|1|元気ですか？|testfile01|Anger|sound\voice|0.8,0,1,1</value>
+  </data>
   <data name="$this.Icon" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
         AAABAAEAAAAAAAEAIACZpQEAFgAAAIlQTkcNChoKAAAADUlIRFIAAAEAAAABAAgGAAAAXHKoZgAAAAFv

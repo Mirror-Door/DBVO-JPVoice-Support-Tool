@@ -1,15 +1,6 @@
 ﻿using Microsoft.WindowsAPICodePack.Dialogs;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.IO.Compression;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace DBVO_JPVoice_Tool
 {
@@ -82,7 +73,6 @@ namespace DBVO_JPVoice_Tool
 
             if (File.Exists(strOutputZipFile))
             {
-
                 if (MessageBox.Show(
                     $"フォルダ：{textBoxOutput.Text}には同名のファイル{textBoxID.Text}.zipが存在します"
                     + "\n上書きしますか？", "ボイスパック作成",
@@ -90,6 +80,14 @@ namespace DBVO_JPVoice_Tool
                 { return; }
 
                 File.Delete(strOutputZipFile);
+            }
+            else
+            {
+                if (MessageBox.Show("ボイスパックを出力します"
+                    + $"\n出力先：{textBoxOutput.Text}"
+                    + "\nよろしいですか？", "ボイスパック作成",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
+                { return; }
             }
 
             if (!Directory.Exists(strDBVOPath)) { Directory.CreateDirectory(strDBVOPath); }

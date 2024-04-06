@@ -1,48 +1,23 @@
-﻿using DBVO_JPVoice_Tool;
-using Microsoft.VisualBasic;
+﻿using Microsoft.VisualBasic;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
-using System.Diagnostics.Eventing.Reader;
-using System.Diagnostics.Metrics;
-using System.Linq;
-using System.Media;
 using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Net.Sockets;
 using System.Reflection;
-using System.Runtime.ConstrainedExecution;
-using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics.X86;
-using System.Security.Cryptography;
-using System.Security.Policy;
-using System.Security.Principal;
 using System.Text;
-using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
 using System.Xml.Linq;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace DBVO_JPVoice_Tool
 {
-    public enum VoiceSoft
-    {
-        Voicevox,
-        Coeiroink,
-        Nemo,
-        Sharevoice,
-        Itvoice,
-        StyleBertVITS2 = 100
-    }
 
     public partial class FormMain : Form
     {
+        /// <summary>
+        /// WAV作成用データ
+        /// </summary>
         private struct MakeWavData
         {
             public string JPWord;
@@ -54,6 +29,9 @@ namespace DBVO_JPVoice_Tool
             public double[] dParams;
         }
 
+        /// <summary>
+        /// LIP作成用データ
+        /// </summary>
         private struct MakeLipData
         {
             public string[] strArrWavFiles;
@@ -63,6 +41,9 @@ namespace DBVO_JPVoice_Tool
             public string strFonixData;
         }
 
+        /// <summary>
+        /// FUZ作成用データ
+        /// </summary>
         private struct MakeFuzData
         {
             public string[] strArrWavFiles;
@@ -70,7 +51,6 @@ namespace DBVO_JPVoice_Tool
             public string strTemporaryPath;
             public string strWMAEnc;
             public string strFuzEnc;
-            public bool isbatch;
             public bool isdelete;
         }
 
@@ -84,20 +64,29 @@ namespace DBVO_JPVoice_Tool
 
         private const string DefaultDictionary = @".\DefaultDictionary.csv";
 
+        /// <summary>
+        /// ログに何件ずつ表示するか
+        /// </summary>
         private const int ListBuffer = 10;
 
+        /// <summary>
+        /// 処理中のUI制御
+        /// </summary>
+        /// <param name="_b">trueでボタンが使用可能</param>
+        /// <param name="_enableCancel">キャンセルボタンを表示するか</param>
         private void EnabledButtons(bool _b, bool _enableCancel)
         {
             buttonProcCancel.Visible = _enableCancel;
 
             buttonBatchFolder.Enabled = _b;
             buttonFaceFXOpen.Enabled = _b;
-            buttonGetChar.Enabled = _b;
+            buttonGetChar.Enabled = _b && buttonGetChar.Text != "取得中…";
             buttonMakeFuz.Enabled = _b && IsInstallYakitori();
             buttonMakeLip.Enabled = _b && IsInstallFaceFX();
             buttonMakePack.Enabled = _b;
             buttonMakeWav.Enabled = _b && comboBoxPreset.SelectedIndex != -1;
             buttonSample.Enabled = _b && buttonMakeWav.Enabled;
+            buttonSampleText.Enabled = _b && buttonMakeWav.Enabled;
             buttonVoiceControl.Enabled = _b;
             //buttonXmltoJson.Enabled = _b;
             buttonYakitoriOpen.Enabled = _b;
@@ -109,6 +98,12 @@ namespace DBVO_JPVoice_Tool
             ToolStripMenuReadDctionary.Enabled = _b;
         }
 
+        /// <summary>
+        /// 処理開始時のUI制御
+        /// </summary>
+        /// <param name="_text">処理の名前</param>
+        /// <param name="_min">最小件数</param>
+        /// <param name="_max">最大件数</param>
         private void ProgressStart(string _text, int _min, int _max)
         {
             labelProgress.Visible = true;
@@ -123,6 +118,10 @@ namespace DBVO_JPVoice_Tool
             EnabledButtons(false, true);
         }
 
+        /// <summary>
+        /// 処理の進行中のUI制御
+        /// </summary>
+        /// <param name="_value">処理済みの件数</param>
         private void ProgressProc(int _value)
         {
             progressBar1.Value = _value;
@@ -131,12 +130,16 @@ namespace DBVO_JPVoice_Tool
             labelProgress.Text = $"{str[..str.IndexOf("…")]}…{progressBar1.Value} / {progressBar1.Maximum}";
             labelProgress.Update();
         }
-        private void ProgressProcPlus(int _value = 1)
-        {
-            ProgressProc(progressBar1.Value + _value);
-        }
 
+        /// <summary>
+        /// 処理の進行中のUI制御、こちらは現在の値に加算します
+        /// </summary>
+        /// <param name="_value">加算する件数</param>
+        private void ProgressProcPlus(int _value = 1) => ProgressProc(progressBar1.Value + _value);
 
+        /// <summary>
+        /// 処理終了時のUI制御
+        /// </summary>
         private void ProgressEnd()
         {
             buttonProcCancel.Visible = false;
@@ -146,20 +149,36 @@ namespace DBVO_JPVoice_Tool
             EnabledButtons(true, false);
         }
 
-        private void LoggingStart(string _title)
+        /// <summary>
+        /// 処理開始時のログ
+        /// </summary>
+        /// <param name="_title">処理名</param>
+        /// <param name="_isLog">falseの場合ログ出力しません</param>
+        private void LoggingStart(string _title, bool _isLog = true)
         {
-            Logging();
-            Logging($"処理開始 《{_title}》");
-            Logging();
+            Logging('-', false, _isLog);
+            Logging($"処理開始 《{_title}》", false, _isLog);
+            Logging('-', false, _isLog);
         }
 
-        private void LoggingEnd(string _title)
+        /// <summary>
+        /// 処理終了時のログ
+        /// </summary>
+        /// <param name="_title">処理名</param>
+        /// <param name="_isLog">falseの場合ログ出力しません</param>
+        private void LoggingEnd(string _title, bool _isLog = true)
         {
-            Logging($"処理終了 《{_title}》");
-            Logging('#', true);
+            Logging($"処理終了 《{_title}》", false, _isLog);
+            Logging('#', true, _isLog);
         }
 
-        private static string OpenFolderDialog(string _title)
+        /// <summary>
+        /// フォルダ選択ダイアログを表示
+        /// </summary>
+        /// <param name="_title">ダイアログのタイトル</param>
+        /// <param name="_outPath">出力先、入力されるとダイアログは表示せずこの値を返します</param>
+        /// <returns></returns>
+        private static string OpenFolderDialog(string _title, string _outPath)
         {
             using CommonOpenFileDialog off = new()
             {
@@ -168,11 +187,16 @@ namespace DBVO_JPVoice_Tool
                 RestoreDirectory = false
             };
 
+            if (_outPath != string.Empty) { return _outPath; }
             if (off.ShowDialog() == CommonFileDialogResult.Cancel) { return string.Empty; }
             return off.FileName;
         }
 
-        private bool CheckUseBatch()
+        /// <summary>
+        /// バッチ出力先オプションが有効で、出力先が入力されていない場合メッセージボックスを表示
+        /// </summary>
+        /// <returns>チェックNGの場合false</returns>
+        private bool CheckUseBatchOption()
         {
             if (ToolStripMenuUseBatchOutput.Checked && textBoxBatch.Text == string.Empty)
             {
@@ -183,26 +207,104 @@ namespace DBVO_JPVoice_Tool
             return true;
         }
 
-        private VoiceFunction? GetVoicesoft(int _voiceSoft = -1)
+        /// <summary>
+        /// デフォルト辞書を読み込むための事前チェック
+        /// </summary>
+        /// <param name="_isUseOption">trueの場合、WAV作成前に辞書読み込みのオプションが有効の場合のみ処理します：falseの場合、オプションの有/無効関係なく処理します</param>
+        /// <param name="_isLog">ログを出力するか</param>
+        /// <param name="_isTextMode">trueの場合、全ての音声合成ソフトの辞書に登録：falseの場合、選択されているソフトのみ</param>
+        /// <returns></returns>
+        private async Task ReadDefaultDictionary(bool _isUseOption, bool _isLog, bool _isTextMode)
         {
-            return (_voiceSoft switch { -1 => (int)comboBoxVoiceSoft.SelectedValue, _ => _voiceSoft }) switch
+            if (!_isUseOption || (_isUseOption && ToolStripMenuReadDicOption.Checked))
             {
-                (int)VoiceSoft.Voicevox => new VoicevoxFunction(),
-                (int)VoiceSoft.Nemo => new VoicevoxNemoFunction(),
-                (int)VoiceSoft.Sharevoice => new SharevoiceFunction(),
-                (int)VoiceSoft.Itvoice => new ItvoiceFunction(),
-                (int)VoiceSoft.Coeiroink => new CoeiroinkFunction(),
-                (int)VoiceSoft.StyleBertVITS2 => new StyleBertVITS2Function(),
-                _ => null
-            };
+                if (_isUseOption) Logging($"「{ToolStripMenuReadDicOption.Text}」オプション：有効", true);
+
+                if (File.Exists(DefaultDictionary))
+                {
+                    await ReadDictionary(DefaultDictionary, _isLog, _isTextMode);
+                }
+                else
+                {
+                    Logging("デフォルトの読み&アクセント辞書「DefaultDictionary.csv」がありません", true);
+                }
+            }
         }
+
+        /// <summary>
+        /// アプリケーション設定をファイルに保存します
+        /// </summary>
+        private void SaveSettings()
+        {
+            try
+            {
+                Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+                if (textBoxYakitoriPath.Text != string.Empty)
+                {
+                    config.AppSettings.Settings["YakitoriPath"].Value = textBoxYakitoriPath.Text;
+                }
+                if (textBoxFaceFXPath.Text != string.Empty)
+                {
+                    config.AppSettings.Settings["FaceFXPath"].Value = textBoxFaceFXPath.Text;
+                }
+                if (textBoxBatch.Text != string.Empty)
+                {
+                    config.AppSettings.Settings["BatchOutputPath"].Value = textBoxBatch.Text;
+                }
+                config.AppSettings.Settings["IsShowMessageBox"].Value = ToolStripMenuItemIsShowMsg.Checked.ToString();
+
+                if (comboBoxVoiceSoft.SelectedIndex != -1)
+                {
+                    config.AppSettings.Settings["VoiceSoft"].Value = ((ItemSet)comboBoxVoiceSoft.SelectedItem).ItemValue.ToString();
+                }
+                if (textBoxParam.Text != string.Empty)
+                {
+                    config.AppSettings.Settings["VoiceParam"].Value = textBoxParam.Text;
+                }
+                config.AppSettings.Settings["CheckboxOnlyMoji"].Value = checkBoxOnlyMoji.Checked.ToString();
+                config.AppSettings.Settings["CheckboxBatch"].Value = checkBoxBatch.Checked.ToString();
+                config.AppSettings.Settings["IsUseBatchOutput"].Value = ToolStripMenuUseBatchOutput.Checked.ToString();
+                config.AppSettings.Settings["CheckboxReadDic"].Value = ToolStripMenuReadDicOption.Checked.ToString();
+
+                config.Save();
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        /// <summary>
+        /// ボイスソフトのクラスを得ます
+        /// </summary>
+        /// <param name="_voiceSoft">音声合成ソフトのID、-1の場合コンボボックスで選択されているソフト</param>
+        /// <returns>音声合成ソフトのクラス</returns>
+        private VoiceFunction? GetVoicesoft(int _voiceSoft = -1)
+        => (_voiceSoft switch
+        {
+            -1 => (int)comboBoxVoiceSoft.SelectedValue,
+            _ => _voiceSoft
+        }) switch
+        {
+            (int)VoiceSoft.Voicevox => new VoicevoxFunction(),
+            (int)VoiceSoft.Nemo => new VoicevoxNemoFunction(),
+            (int)VoiceSoft.Sharevoice => new SharevoiceFunction(),
+            (int)VoiceSoft.Itvoice => new ItvoiceFunction(),
+            (int)VoiceSoft.Coeiroink => new CoeiroinkFunction(),
+            (int)VoiceSoft.StyleBertVITS2 => new StyleBertVITS2Function(),
+            _ => null
+        };
 
         public FormMain()
         {
             InitializeComponent();
         }
 
-        private async void Form1_Load(object sender, EventArgs e)
+        /// <summary>
+        /// フォーム起動時
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Form1_Load(object sender, EventArgs e)
         {
             var assembly = Assembly.GetExecutingAssembly().GetName();
             var ver = assembly.Version;
@@ -219,15 +321,13 @@ namespace DBVO_JPVoice_Tool
             checkBoxOnlyMoji.Checked = ConfigurationManager.AppSettings["CheckboxOnlyMoji"] == "True";
             checkBoxBatch.Checked = ConfigurationManager.AppSettings["CheckboxBatch"] == "True";
             ToolStripMenuUseBatchOutput.Checked = ConfigurationManager.AppSettings["IsUseBatchOutput"] == "True";
+            ToolStripMenuReadDicOption.Checked = ConfigurationManager.AppSettings["CheckboxReadDic"] == "True";
 
             Logging('*');
             Logging($"{this.Text}");
             Logging('*');
 
-            if (File.Exists(DefaultDictionary))
-            {
-                await ReadDictionary(DefaultDictionary);
-            }
+            //await ReadDefaultDictionary(false);
 
             Logging("音声ファイルを作成したい場合は、まず最初に「音声合成ソフト」を選択してから「キャラ取得」ボタンを押してください");
             Logging("各ボタンの上にマウスカーソルを乗っけるとヒントが表示されます", true);
@@ -257,9 +357,7 @@ namespace DBVO_JPVoice_Tool
             int iCounter = 0;
             int iErrCounter = 0;
 
-            List<string> strListLog = new(ListBuffer);
-
-            Action<string, bool> actionLogging = this.Logging;
+            var strListLog = new List<string>(ListBuffer);
 
             foreach (var data in _data)
             {
@@ -316,7 +414,7 @@ namespace DBVO_JPVoice_Tool
                     this.Invoke(() => ProgressProc(iCounter));
                     if (strListLog.Count % ListBuffer == 0)
                     {
-                        this.Invoke(() => LoggingRange(strListLog.ToArray(), true));
+                        this.Invoke(() => Logging(strListLog.ToArray(), true));
                         strListLog.Clear();
                     }
                 }
@@ -337,7 +435,7 @@ namespace DBVO_JPVoice_Tool
 
             if (strListLog.Count > 0)
             {
-                this.Invoke(() => LoggingRange(strListLog.ToArray(), true));
+                this.Invoke(() => Logging(strListLog.ToArray(), true));
                 strListLog.Clear();
             }
             this.Invoke(() => Logging($"◆データ件数：{iCounter}  エラー件数：{iErrCounter}", true));
@@ -349,7 +447,6 @@ namespace DBVO_JPVoice_Tool
             double[] dParams = { 1, 0, 1, 1 };
 
             string strParams = _params switch { "" => textBoxParam.Text, _ => _params };
-            //string strParams = _params != string.Empty ? _params : textBoxParam.Text;
 
             var strArrParam = strParams.Split(',');
             if (strArrParam.Length == 4)
@@ -369,17 +466,99 @@ namespace DBVO_JPVoice_Tool
             return dParams;
         }
 
-        private async Task<bool> MakeWavAsync(string _outputpath = "")
+        private async Task PlaySample(string _text = "")
         {
+            string[] strArrSampleWord = {
+                "当ててやろうか？、誰かにスイートロールを盗まれたかな？",
+                "ここに来るべきじゃなかったな",
+                "勝利か、ソブンガルデかだ！！",
+                "ガラクタだって言う人もいるけど、私はたからものって呼んでるわ",
+                "お前のゴールドを数えるのが楽しみだ！",
+                "真のオークの実力を見せてやる！",
+                "降参するなら今のうちだぞ"
+            };
 
+            string strSampleWord;
+
+            if (_text == string.Empty)
+            {
+                strSampleWord = strArrSampleWord[new Random().Next(strArrSampleWord.Length * 100) / 100];
+            }
+            else
+            {
+                strSampleWord = _text;
+            }
+
+            EnabledButtons(false, false);
+            Logging($"再生：{((ItemSet)comboBoxPreset.SelectedItem).ItemDisp}「{strSampleWord}」", true);
+
+            VoiceFunction? voiceFunc = GetVoicesoft();
+            if (voiceFunc is null) { return; }
+
+            int iSpeaker = (int)comboBoxPreset.SelectedValue;
+            string strStyle = comboBoxPreset.Text.Contains(':') ? comboBoxPreset.Text.Split(':')[1] : "";
+            var voiceParams = GetVoiceParams();
+            HttpStatusCode? statusCode;
+
+            if (voiceFunc.GetType() == typeof(StyleBertVITS2Function))
+            {
+                statusCode = await Task.Run(() => ((StyleBertVITS2Function)voiceFunc).MakeSound(string.Empty, strSampleWord, strStyle, iSpeaker, voiceParams));
+            }
+            else
+            {
+                statusCode = await Task.Run(() => voiceFunc.MakeSound(string.Empty, strSampleWord, true, iSpeaker, voiceParams));
+            }
+
+            if (statusCode is null)
+            {
+                Logging($"処理に失敗しました。{comboBoxVoiceSoft.Text}が起動していることを確認してください", true);
+            }
+            else if (statusCode == HttpStatusCode.UnprocessableEntity)
+            {
+                Logging($"送信されたパラメータが間違っています", true);
+            }
+            else if (statusCode == HttpStatusCode.InternalServerError)
+            {
+                Logging($"処理に失敗しました：{statusCode}", true);
+            }
+            else if (statusCode != HttpStatusCode.OK)
+            {
+                Logging($"処理に失敗しました。{comboBoxVoiceSoft.Text}が起動していることを確認してください", true);
+            }
+
+            await Task.Delay(3000);
+
+            EnabledButtons(true, false);
+        }
+
+        /// <summary>
+        /// オプションが有効な場合バッチ処理の出力先パスを得ます
+        /// </summary>
+        /// <returns>オプション無効の場合空文字</returns>
+        private string GetBatchOutputPath()
+            => ToolStripMenuUseBatchOutput.Checked ? textBoxBatch.Text : string.Empty;
+
+        private static string GetOutputPath(string _msg, string _title, string _output)
+        {
+            if (MessageBox.Show(_msg, _title,
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            {
+                return string.Empty;
+            }
+
+            return OpenFolderDialog("出力先のフォルダを選択してください", _output);
+        }
+
+        private async Task<bool> MakeWavAsync(string _batchOutPath)
+        {
             if (comboBoxPreset.SelectedIndex == -1)
             {
                 Logging($"ボイスキャラクターが選択されていません");
                 return false;
             }
 
-            if (!CheckUseBatch()) { return false; }
-            _outputpath = textBoxBatch.Text;
+            if (!CheckUseBatchOption()) { return false; }
+            _batchOutPath = GetBatchOutputPath();
 
             string strSearch = string.Empty;
 
@@ -403,10 +582,8 @@ namespace DBVO_JPVoice_Tool
 
             if (ofd.ShowDialog() != DialogResult.OK) { return false; }
 
-
-            Dictionary<string, Dictionary<string, string>>? listJsondata = new();
-
-            List<string> listDataCount = new();
+            var listJsondata = new Dictionary<string, Dictionary<string, string>>();
+            var listDataCount = new List<string>();
             int iTotal = 0;
 
             foreach (var jsonPath in ofd.FileNames)
@@ -430,9 +607,13 @@ namespace DBVO_JPVoice_Tool
                 {
                     dicJsondata = dicJsondata.Where(x => Regex.IsMatch(x.Key, strSearch)).ToDictionary(x => x.Key, y => y.Value);
                 }
-                iTotal += dicJsondata.Count;
-                listDataCount.Add($"{Path.GetFileName(jsonPath)}(データ件数：{dicJsondata.Count})");
-                listJsondata.Add(jsonPath, dicJsondata);
+
+                if (dicJsondata.Count > 0)
+                {
+                    iTotal += dicJsondata.Count;
+                    listDataCount.Add($"{Path.GetFileName(jsonPath)}(データ件数：{dicJsondata.Count})");
+                    listJsondata.Add(jsonPath, dicJsondata);
+                }
             }
 
             if (iTotal == 0)
@@ -442,45 +623,24 @@ namespace DBVO_JPVoice_Tool
                 return false;
             }
 
-            if (_outputpath == string.Empty)
+            string strMessage = $"{ofd.FileNames.Length}件の辞書ファイルが選択されました"
+            + $"\n\n{listDataCount.Aggregate((x, y) => $"{x}\n{y}")}\n全データ件数：{iTotal}"
+            + ((strSearch != string.Empty) ? $"\n指定文字列：{strSearch}" : "")
+            + $"\nボイスキャラクター：{((ItemSet)comboBoxPreset.SelectedItem).ItemDisp}";
+
+            if (_batchOutPath == string.Empty)
             {
-                if (MessageBox.Show(
-                $"{ofd.FileNames.Length}件の辞書ファイルが選択されました"
-                + $"\n\n{listDataCount.Aggregate((x, y) => $"{x}\n{y}")}\n全データ件数：{iTotal}"
-                + ((strSearch != string.Empty) ? $"\n指定文字列：{strSearch}" : "")
-                + $"\nボイスキャラクター：{((ItemSet)comboBoxPreset.SelectedItem).ItemDisp}"
-                + "\n\n音声ファイルを生成します。よろしいですか？"
-                + "\n\n※「はい」の場合、次のダイアログで出力先のフォルダを指定します"
-                + "\n\n※既に同名のフォルダやファイルが存在する場合、上書きされますのでご注意ください",
-                buttonMakeWav.Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
-                {
-                    return false;
-                }
+                strMessage += "\n\n音声ファイルを生成します。よろしいですか？";
             }
             else
             {
-                if (MessageBox.Show(
-                $"{ofd.FileNames.Length}件の辞書ファイルが選択されました"
-                + $"\n\n{listDataCount.Aggregate((x, y) => $"{x}\n{y}")}\n全データ件数：{iTotal}"
-                + ((strSearch != string.Empty) ? $"\n指定文字列：{strSearch}" : "")
-                + $"\nボイスキャラクター：{((ItemSet)comboBoxPreset.SelectedItem).ItemDisp}"
-                + "\n\n音声(WAV)、LIP生成、およびFUZ変換を一括で行います。\nよろしいですか？"
-                + "\n\n※全てのファイルは、一括処理のFUZファイル出力先に出力されます"
-                + $"\n出力先：{_outputpath}"
-                + "\n\n※既に同名のフォルダやファイルが存在する場合、上書きされますのでご注意ください",
-                buttonBatchAll.Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
-                {
-                    return false;
-                }
+                strMessage += "\n\n音声(WAV)、LIP生成、およびFUZ変換を一括で行います。\nよろしいですか？";
             }
 
-            string strOutputPath = _outputpath switch
-            {
-                "" => OpenFolderDialog("出力先のフォルダを選択してください"),
-                _ => _outputpath
-            };
-
+            var strOutputPath = GetOutputPath(GetMessageOutput(strMessage, _batchOutPath), buttonBatchAll.Text, _batchOutPath);
             if (strOutputPath == string.Empty) { return false; }
+
+            await ReadDefaultDictionary(true, false, false);
 
             LoggingStart(buttonMakeWav.Text);
             if (strSearch != string.Empty) { Logging($"指定文字列：{strSearch}"); }
@@ -496,7 +656,7 @@ namespace DBVO_JPVoice_Tool
                 string strJsonFile = Path.GetFileName(dicJson.Key);
 
                 int ispeaker = comboBoxPreset.SelectedIndex switch { not -1 => (int)comboBoxPreset.SelectedValue, _ => 0 };
-                string strStyle = comboBoxPreset.SelectedIndex switch { not -1 => comboBoxPreset.Text.Contains(':') ? comboBoxPreset.Text.Split(":")[2] : "", _ => "" };
+                string strStyle = comboBoxPreset.SelectedIndex switch { not -1 => comboBoxPreset.Text.Contains(':') ? comboBoxPreset.Text.Split(":")[1] : "", _ => "" };
                 var dParams = GetVoiceParams();
 
                 VoiceFunction? voiceFunc = GetVoicesoft();
@@ -516,7 +676,7 @@ namespace DBVO_JPVoice_Tool
                         dParams = dParams
                     }).ToArray();
 
-                if(listWavData.Length > 0)
+                if (listWavData.Length > 0)
                 {
                     Logging($"辞書ファイル：{strJsonFile}", true);
                     await Task.Run(() => SubThreadMakeWav(listWavData));
@@ -533,7 +693,7 @@ namespace DBVO_JPVoice_Tool
         private int SubThreadMakeLip(MakeLipData _data)
         {
             int iCounter = 0;
-            List<string> strListLog = new(ListBuffer);
+            var strListLog = new List<string>(ListBuffer);
 
             ReadOnlySpan<string> spdata = _data.strArrWavFiles.AsSpan();
 
@@ -573,15 +733,13 @@ namespace DBVO_JPVoice_Tool
 
                     if (strListLog.Count % ListBuffer == 0)
                     {
-                        this.Invoke(() => LoggingRange(strListLog.ToArray(), true));
+                        this.Invoke(() => Logging(strListLog.ToArray(), true));
                         strListLog.Clear();
                     }
 
                 }
                 catch (OperationCanceledException)
                 {
-                    //strListLog.Add($"{DateTime.Now:yyyy/MM/dd HH:mm:ss}◇処理がキャンセルされました");
-                    //strListLog.Add(new string('=', 80));
                     break;
                 }
                 catch (Exception ex)
@@ -594,17 +752,16 @@ namespace DBVO_JPVoice_Tool
 
             if (strListLog.Count > 0)
             {
-                this.Invoke(() => LoggingRange(strListLog.ToArray(), true));
+                this.Invoke(() => Logging(strListLog.ToArray(), true));
                 strListLog.Clear();
             }
             return iCounter;
-            //this.Invoke(() => Logging($"データ件数：{iCounter}", true));
         }
 
         private int SubThreadMakeFuz(MakeFuzData _data)
         {
             int iCounter = 0;
-            List<string> strListLog = new(ListBuffer);
+            var strListLog = new List<string>(ListBuffer);
 
             ReadOnlySpan<string> spdata = _data.strArrWavFiles.AsSpan();
 
@@ -638,7 +795,6 @@ namespace DBVO_JPVoice_Tool
                     {
                         strListLog.Add($"{DateTime.Now:yyyy/MM/dd HH:mm:ss}◇{strXwmPath}の作成に失敗しました");
                         continue;
-                        //this.Invoke(() => Logging($"{iCounter:D3}：{strXwmPath}の作成に失敗しました", true));
                     }
 
                     pInfo.FileName = _data.strFuzEnc;
@@ -651,60 +807,45 @@ namespace DBVO_JPVoice_Tool
                     {
                         strListLog.Add($"{DateTime.Now:yyyy/MM/dd HH:mm:ss}◇{strFuzPath}の作成に失敗しました");
                         continue;
-                        //this.Invoke(() => Logging($"{iCounter:D3}：{strFuzPath}の作成に失敗しました", true));
                     }
 
-                    if (_data.isbatch && _data.isdelete && File.Exists(wavfile)) { File.Delete(wavfile); }
-                    if (_data.isbatch && _data.isdelete && File.Exists(strLipPath)) { File.Delete(strLipPath); }
+                    if (_data.isdelete && File.Exists(wavfile)) { File.Delete(wavfile); }
+                    if (_data.isdelete && File.Exists(strLipPath)) { File.Delete(strLipPath); }
 
                     iCounter++;
                     strListLog.Add($"{DateTime.Now:yyyy/MM/dd HH:mm:ss}◇{Path.GetFileName(wavfile)} ==> {Path.GetFileName(strFuzPath)}");
-                    //this.Invoke(() => Logging($"{iCounter:D3}：{Path.GetFileName(wavfile)} ==> {Path.GetFileName(strFuzPath)}", true));
                     this.Invoke(() => ProgressProcPlus());
 
                     if (strListLog.Count % ListBuffer == 0)
                     {
-                        this.Invoke(() => LoggingRange(strListLog.ToArray(), true));
+                        this.Invoke(() => Logging(strListLog.ToArray(), true));
                         strListLog.Clear();
                     }
-
                 }
                 catch (OperationCanceledException)
                 {
-                    //strListLog.Add($"{DateTime.Now:yyyy/MM/dd HH:mm:ss}◇処理がキャンセルされました");
-                    //strListLog.Add(new string('=', 80));
-                    //this.Invoke(() => Logging($"処理がキャンセルされました", true));
-                    //this.Invoke(() => Logging('!'));
                     break;
                 }
                 catch (Exception ex)
                 {
-                    //this.Invoke(() => Logging($"エラーが発生しました。\nファイル：{wavfile}\n{ex.Message}", true));
                     strListLog.Add($"{DateTime.Now:yyyy/MM/dd HH:mm:ss}◇エラーが発生しました。\nファイル：{wavfile}\n{ex.Message}");
                     strListLog.Add(new string('!', 80));
-                    //this.Invoke(() => Logging('!'));
                     continue;
                 }
             }
 
             if (strListLog.Count > 0)
             {
-                this.Invoke(() => LoggingRange(strListLog.ToArray(), true));
+                this.Invoke(() => Logging(strListLog.ToArray(), true));
                 strListLog.Clear();
             }
             //this.Invoke(() => Logging($"データ件数：{iCounter}", true));
             return iCounter;
         }
 
-        private bool IsInstallFaceFX(bool _isLog = false)
-        {
-            return IsInstallRequired(textBoxFaceFXPath.Text, _isLog, FaceFXWrapper, FonixData);
-        }
+        private bool IsInstallFaceFX(bool _isLog = false) => IsInstallRequired(textBoxFaceFXPath.Text, _isLog, FaceFXWrapper, FonixData);
 
-        private bool IsInstallYakitori(bool _isLog = false)
-        {
-            return IsInstallRequired(textBoxYakitoriPath.Text, _isLog, xWMAEncode, BmlFuzEncode);
-        }
+        private bool IsInstallYakitori(bool _isLog = false) => IsInstallRequired(textBoxYakitoriPath.Text, _isLog, xWMAEncode, BmlFuzEncode);
 
         private bool IsInstallRequired(string _path, bool _isLog, params string[] _findfiles)
         {
@@ -723,22 +864,16 @@ namespace DBVO_JPVoice_Tool
             return true;
         }
 
-        private async Task<bool> MakeLipAsync(string _wavfilepath = "", string _output = "", bool _isbatch = false)
+        private async Task<bool> MakeLipAsync(string _wavfilepath = "", string _output = "")
         {
             if (!this.IsInstallFaceFX(true))
             {
                 return false;
             }
 
-            if (!CheckUseBatch()) { return false; }
-            _output = textBoxBatch.Text;
+            if (!CheckUseBatchOption()) { return false; }
 
-            string strWavPath = _wavfilepath switch
-            {
-                "" => OpenFolderDialog("WAVファイルが格納されているフォルダを選択してください"),
-                _ => _wavfilepath
-            };
-
+            string strWavPath = OpenFolderDialog("WAVファイルが格納されているフォルダを選択してください", _wavfilepath);
             if (strWavPath == string.Empty) { return false; }
 
             string strTemporaryPath = $@"{strWavPath}\_wav";
@@ -750,21 +885,20 @@ namespace DBVO_JPVoice_Tool
                 return false;
             }
 
-            if (!_isbatch && MessageBox.Show(
-            $"WAVフォルダ：{strWavPath}"
-            + $"\nファイル総数：{strArrWavFiles.Length}"
-            + "\n\n上記フォルダにあるWAVファイルのLIPファイルを作成します。\nよろしいですか？"
-            + "\n\n※「はい」の場合、次のダイアログで出力先フォルダを指定します"
-            + "\n\n※既に同名のファイルが存在する場合、上書きされますのでご注意ください",
-            buttonMakeWav.Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
-            { return false; }
-
-            string strOutPutPath = _output switch
+            string strOutputPath;
+            if (_output == string.Empty)
             {
-                "" => OpenFolderDialog("出力先のフォルダを選択してください"),
-                _ => _output
-            };
-            if (strOutPutPath == string.Empty) { return false; }
+                string strMessage = $"WAVフォルダ：{strWavPath}"
+                    + $"\nファイル総数：{strArrWavFiles.Length}"
+                    + "\n\n上記フォルダにあるWAVファイルのLIPファイルを作成します。\nよろしいですか？";
+
+                strOutputPath = GetOutputPath(GetMessageOutput(strMessage, GetBatchOutputPath()), buttonMakeLip.Text, GetBatchOutputPath());
+                if (strOutputPath == string.Empty) { return false; }
+            }
+            else
+            {
+                strOutputPath = _output;
+            }
 
             LoggingStart(buttonMakeLip.Text);
             Logging($"処理に時間がかかりますのでしばらくお待ち下さい…経過は左下のバーに表示されます", true);
@@ -772,41 +906,25 @@ namespace DBVO_JPVoice_Tool
 
             ProgressStart("Lipファイル作成中", 0, strArrWavFiles.Length);
 
-            const int iSplitCountSetting = 2;
-            int iSplitCount = strArrWavFiles.Length >= iSplitCountSetting ? iSplitCountSetting : 1;
-            int ichunkSize = (strArrWavFiles.Length / iSplitCount) + (strArrWavFiles.Length % iSplitCount);
-
-            var chunkWavFiles = strArrWavFiles.Select((v, i) => new { v, i })
-                .GroupBy(x => x.i / ichunkSize)
-                .Select(g => g.Select(x => x.v)).ToArray();
-
-            MakeLipData[] lipData = new MakeLipData[iSplitCount];
-            int[] iCount = new int[iSplitCount];
-
-            for (int i = 0; i < iSplitCount; i++)
+            MakeLipData[] makeData = MakeData<MakeLipData>(strArrWavFiles, chunk =>
             {
-                lipData[i].strArrWavFiles = chunkWavFiles[i].ToArray();
-                lipData[i].strOutPutPath = strOutPutPath;
-                lipData[i].strFaceFXWrapper = $@"{textBoxFaceFXPath.Text}\{FaceFXWrapper}";
-                lipData[i].strFonixData = $@"{textBoxFaceFXPath.Text}\{FonixData}";
-                lipData[i].strTemporaryPath = strTemporaryPath;
-                iCount[i] = 0;
-            }
+                MakeLipData[] makeData = new MakeLipData[chunk.Length];
+
+                for (int i = 0; i < chunk.Length; i++)
+                {
+                    makeData[i].strArrWavFiles = chunk[i].ToArray();
+                    makeData[i].strOutPutPath = strOutputPath;
+                    makeData[i].strFaceFXWrapper = $@"{textBoxFaceFXPath.Text}\{FaceFXWrapper}";
+                    makeData[i].strFonixData = $@"{textBoxFaceFXPath.Text}\{FonixData}";
+                    makeData[i].strTemporaryPath = strTemporaryPath;
+                }
+                return makeData;
+            });
+            int[] iCount = new int[makeData.Length];
 
             CancelToken = new CancellationTokenSource();
-            if(iSplitCount == 1)
-            {
-                await Task.Run(() => Parallel.Invoke(
-                    () => iCount[0] = SubThreadMakeLip(lipData[0])
-                    ));
-            }
-            else
-            {
-                await Task.Run(() => Parallel.Invoke(
-                    () => iCount[0] = SubThreadMakeLip(lipData[0])
-                    , () => iCount[1] = SubThreadMakeLip(lipData[1])
-                    ));
-            }
+
+            await Task.Run(() => Parallel.For(0, makeData.Length, (i) => iCount[i] = SubThreadMakeLip(makeData[i])));
 
             if (Directory.Exists(strTemporaryPath)) { Directory.Delete(strTemporaryPath, true); }
 
@@ -816,31 +934,26 @@ namespace DBVO_JPVoice_Tool
                 Logging('=');
             }
 
-            LoggingEnd(buttonMakeFuz.Text);
+            LoggingEnd(buttonMakeLip.Text);
             Logging($"データ件数：{iCount.Sum()}"
                 + (CancelToken.Token.IsCancellationRequested ? "" : $"  エラー件数：{strArrWavFiles.Length - iCount.Sum()}"));
-            Logging($"出力先：{strOutPutPath}", true);
+            Logging($"出力先：{strOutputPath}", true);
 
             ProgressEnd();
 
             return !CancelToken.Token.IsCancellationRequested;
         }
 
-        private async Task<bool> MakeFuzAsync(string _wavfilepath = "", string _output = "", bool _isbatch = false, bool _isdelete = false)
+        private async Task<bool> MakeFuzAsync(string _wavfilepath = "", string _output = "", bool _isdelete = false)
         {
             if (!IsInstallYakitori(true))
             {
                 return false;
             }
 
-            if (!CheckUseBatch()) { return false; }
-            _output = textBoxBatch.Text;
+            if (!CheckUseBatchOption()) { return false; }
 
-            string strWavPath = _wavfilepath switch
-            {
-                "" => OpenFolderDialog("WAVファイルが格納されているフォルダを選択してください"),
-                _ => _wavfilepath
-            };
+            string strWavPath = OpenFolderDialog("WAVファイルが格納されているフォルダを選択してください", _wavfilepath);
             if (strWavPath == string.Empty) { return false; }
 
             string strTemporaryPath = $@"{_wavfilepath}\_xwm";
@@ -852,66 +965,46 @@ namespace DBVO_JPVoice_Tool
                 return false;
             }
 
-            if (!_isbatch && MessageBox.Show(
-            $"WAVフォルダ：{strWavPath}"
-            + $"\nファイル総数：{strArrWavFiles.Length}"
-            + "\n\n上記フォルダにあるWAVファイルを全てFUZファイルへ変換します。\nよろしいですか？"
-            + "\n\n※「はい」の場合、次のダイアログで出力先フォルダを指定します"
-            + "\n\n※既に同名のフォルダやファイルが存在する場合、上書きされますのでご注意ください",
-            buttonMakeWav.Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
-            { return false; }
-
-            string strOutPutPath = _output switch
+            string strOutputPath;
+            if (_output == string.Empty)
             {
-                "" => OpenFolderDialog("出力先のフォルダを選択してください"),
-                _ => _output
-            };
-            if (strOutPutPath == string.Empty) { return false; }
+                string strMessage = $"WAVフォルダ：{strWavPath}"
+                    + $"\nファイル総数：{strArrWavFiles.Length}"
+                    + "\n\n上記フォルダにあるWAVファイルを全てFUZファイルへ変換します。\nよろしいですか？";
+
+                strOutputPath = GetOutputPath(GetMessageOutput(strMessage, GetBatchOutputPath()), buttonMakeFuz.Text, GetBatchOutputPath());
+                if (strOutputPath == string.Empty) { return false; }
+            }
+            else
+            {
+                strOutputPath = _output;
+            }
 
             LoggingStart(buttonMakeFuz.Text);
             Logging($"処理に時間がかかりますのでしばらくお待ち下さい…経過は左下のバーに表示されます", true);
             listBoxLog.Update();
 
-            ProgressStart("FUZファイルへ変換中", 0, strArrWavFiles.Length);
+            ProgressStart(buttonMakeFuz.Text, 0, strArrWavFiles.Length);
 
-            const int iSplitCountSetting = 2;
-            int iSplitCount = strArrWavFiles.Length >= iSplitCountSetting ? iSplitCountSetting : 1;
-            int ichunkSize = (strArrWavFiles.Length / iSplitCount) + (strArrWavFiles.Length % iSplitCount);
-
-            var chunkWavFiles = strArrWavFiles.Select((v, i) => new { v, i })
-                .GroupBy(x => x.i / ichunkSize)
-                .Select(g => g.Select(x => x.v)).ToArray();
-
-            MakeFuzData[] makeData = new MakeFuzData[iSplitCount];
-            int[] iCount = new int[iSplitCount];
-
-            for (int i = 0; i < iSplitCount; i++)
+            MakeFuzData[] makeData = MakeData<MakeFuzData>(strArrWavFiles, chunk =>
             {
-                makeData[i].strArrWavFiles = chunkWavFiles[i].ToArray();
-                makeData[i].strOutPutPath = strOutPutPath;
-                makeData[i].strWMAEnc = $@"{textBoxYakitoriPath.Text}\{xWMAEncode}";
-                makeData[i].strFuzEnc = $@"{textBoxYakitoriPath.Text}\{BmlFuzEncode}";
-                makeData[i].strTemporaryPath = strTemporaryPath;
-                makeData[i].isbatch = _isbatch;
-                makeData[i].isdelete = _isdelete;
-                iCount[i] = 0;
-            }
+                MakeFuzData[] makeData = new MakeFuzData[chunk.Length];
+
+                for (int i = 0; i < chunk.Length; i++)
+                {
+                    makeData[i].strArrWavFiles = chunk[i].ToArray();
+                    makeData[i].strOutPutPath = strOutputPath;
+                    makeData[i].strWMAEnc = $@"{textBoxYakitoriPath.Text}\{xWMAEncode}";
+                    makeData[i].strFuzEnc = $@"{textBoxYakitoriPath.Text}\{BmlFuzEncode}";
+                    makeData[i].strTemporaryPath = strTemporaryPath;
+                    makeData[i].isdelete = _isdelete;
+                }
+                return makeData;
+            });
+            int[] iCount = new int[makeData.Length];
 
             CancelToken = new CancellationTokenSource();
-            if (iSplitCount == 1)
-            {
-                await Task.Run(() => Parallel.Invoke(
-                    () => iCount[0] = SubThreadMakeFuz(makeData[0])
-                    ));
-            }
-            else
-            {
-                await Task.Run(() => Parallel.Invoke(
-                    () => iCount[0] = SubThreadMakeFuz(makeData[0])
-                    , () => iCount[1] = SubThreadMakeFuz(makeData[1])
-                    ));
-            }
-
+            await Task.Run(() => Parallel.For(0, makeData.Length, (i) => iCount[i] = SubThreadMakeFuz(makeData[i])));
 
             if (Directory.Exists(strTemporaryPath)) { Directory.Delete(strTemporaryPath, true); }
 
@@ -924,11 +1017,24 @@ namespace DBVO_JPVoice_Tool
             LoggingEnd(buttonMakeFuz.Text);
             Logging($"データ件数：{iCount.Sum()}"
                 + (CancelToken.Token.IsCancellationRequested ? "" : $"  エラー件数：{strArrWavFiles.Length - iCount.Sum()}"));
-            Logging($"出力先：{strOutPutPath}", true);
+            Logging($"出力先：{strOutputPath}", true);
 
             ProgressEnd();
 
             return !CancelToken.Token.IsCancellationRequested;
+        }
+
+        private static T[] MakeData<T>(string[] _arrWav, Func<IEnumerable<string>[], T[]> _func)
+        {
+            const int iSplitCountSetting = 3;
+            int iSplitCount = _arrWav.Length >= iSplitCountSetting ? iSplitCountSetting : 1;
+            int ichunkSize = (_arrWav.Length / iSplitCount) + (_arrWav.Length % iSplitCount);
+
+            var chunkWavFiles = _arrWav.Select((v, i) => new { v, i })
+                .GroupBy(x => x.i / ichunkSize)
+                .Select(g => g.Select(x => x.v)).ToArray();
+
+            return _func(chunkWavFiles);
         }
 
         private static void DelXmlSpace(string _path, string _out)
@@ -992,8 +1098,10 @@ namespace DBVO_JPVoice_Tool
             return dict;
         }
 
-        private async void ButtonXmltoJson_Click(object sender, EventArgs e)
+        private async void ToolStripMenuXmltoJson_Click(object sender, EventArgs e)
         {
+            if (!CheckUseBatchOption()) { return; }
+
             using OpenFileDialog ofd = new()
             {
                 FileName = "",
@@ -1007,16 +1115,16 @@ namespace DBVO_JPVoice_Tool
 
             if (ofd.ShowDialog() != DialogResult.OK) { return; }
 
-            if (MessageBox.Show(
-                $"{ofd.FileNames.Length}件のXMLファイルが選択されました"
-                + "\n\n上記ファイルを読み込みDBVO用の辞書ファイル(JSON)を作成します\nよろしいですか？"
-                + "\n\n※「はい」の場合、続けて辞書ファイルの出力先を決定します",
+            string strMessage = $"{ofd.FileNames.Length}件のXMLファイルが選択されました"
+                + "\n\n上記ファイルを読み込みDBVO用の辞書ファイル(JSON)を作成します\nよろしいですか？";
+
+            if (MessageBox.Show(GetMessageOutput(strMessage, GetBatchOutputPath()),
                 ToolStripMenuXmltoJson.Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
             {
                 return;
             }
 
-            var outputFolder = OpenFolderDialog("辞書ファイル(JSON)の出力先を指定してください");
+            var outputFolder = OpenFolderDialog("辞書ファイル(JSON)の出力先を指定してください", GetBatchOutputPath());
             if (outputFolder == string.Empty) { return; }
 
             EnabledButtons(false, false);
@@ -1057,191 +1165,86 @@ namespace DBVO_JPVoice_Tool
             LoggingEnd(ToolStripMenuXmltoJson.Text);
             EnabledButtons(true, false);
 
-            if (ToolStripMenuItemIsShowMsg.Checked)
-            {
-                MessageBox.Show($"処理が完了しました", ToolStripMenuXmltoJson.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+            ShowEndProcMessage(true, ToolStripMenuXmltoJson.Text);
         }
 
-        //JSONから音声ファイルを作成
-        private async void ButtonMakeWav_Click(object sender, EventArgs e)
+        private async Task ButtonMakeProc(Func<Task<bool>> _action, string _title)
         {
-            if (await MakeWavAsync() && ToolStripMenuItemIsShowMsg.Checked)
+            if (await _action() && ToolStripMenuItemIsShowMsg.Checked)
             {
-                MessageBox.Show($"処理が完了しました", buttonMakeWav.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show($"処理が完了しました", _title, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
 
-            if (CancelToken is not null)
-            {
-                CancelToken.Dispose();
-                CancelToken = null;
-            }
+            DisposeCancelToken();
         }
+
+        private async void ButtonMakeWav_Click(object sender, EventArgs e)
+        => await ButtonMakeProc(() => MakeWavAsync(string.Empty), buttonMakeWav.Text);
 
         //WAV→LIPファイル作成
         private async void ButtonMakeLip_Click(object sender, EventArgs e)
-        {
-            if (await MakeLipAsync() && ToolStripMenuItemIsShowMsg.Checked)
-            {
-                MessageBox.Show($"処理が完了しました", buttonMakeLip.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-
-            if (CancelToken is not null)
-            {
-                CancelToken.Dispose();
-                CancelToken = null;
-            }
-        }
+         => await ButtonMakeProc(() => MakeLipAsync(), buttonMakeLip.Text);
 
         //WAV→FUZへの変換
         private async void ButtonMakeFuz_Click(object sender, EventArgs e)
-        {
-            if (await MakeFuzAsync() && ToolStripMenuItemIsShowMsg.Checked)
-            {
-                MessageBox.Show($"処理が完了しました", buttonMakeFuz.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-
-            if (CancelToken is not null)
-            {
-                CancelToken.Dispose();
-                CancelToken = null;
-            }
-        }
+         => await ButtonMakeProc(() => MakeFuzAsync(), buttonMakeFuz.Text);
 
         private static bool IsJapanese(string text)
-        {
-            var isJapanese = Regex.IsMatch(text, @"[\p{IsHiragana}\p{IsKatakana}\p{IsCJKUnifiedIdeographs}]+");
-            return isJapanese;
-        }
+            => Regex.IsMatch(text, @"[\p{IsHiragana}\p{IsKatakana}\p{IsCJKUnifiedIdeographs}]+");
 
-        private void Logging(char chr = '-', bool isScroll = false)
+        private static void Logging(ListBox _listBox, Action _action, bool _isScroll, bool _isLog)
         {
-            listBoxLog.Items.Add(new String(chr, 80));
-            if (isScroll)
+            if (!_isLog) { return; }
+
+            _action();
+
+            if (_isScroll)
             {
-                listBoxLog.TopIndex = listBoxLog.Items.Count - 1;
-            }
-        }
-        private void Logging(string log, bool isScroll = false)
-        {
-            listBoxLog.Items.Add($"{DateTime.Now:yyyy/MM/dd HH:mm:ss}◇{log}");
-            if (isScroll)
-            {
-                listBoxLog.TopIndex = listBoxLog.Items.Count - 1;
+                _listBox.TopIndex = _listBox.Items.Count - 1;
             }
         }
 
-        private void LoggingRange(string[] logs, bool isScroll = false)
-        {
-            listBoxLog.Items.AddRange(logs);
-            if (isScroll)
-            {
-                listBoxLog.TopIndex = listBoxLog.Items.Count - 1;
-            }
-        }
+        private void Logging(char chr = '-', bool isScroll = false, bool _isLog = true)
+            => Logging(listBoxLog, () => listBoxLog.Items.Add(new String(chr, 80)), isScroll, _isLog);
 
-        private void TextBoxYakitoriPath_TextChanged(object sender, EventArgs e)
-        {
-            if (!IsInstallYakitori(true))
-            {
-                labelYakitori.Text = "NG";
-                labelYakitori.BackColor = Color.Red;
-                return;
-            }
+        private void Logging(string log, bool isScroll = false, bool _isLog = true)
+            => Logging(listBoxLog, () => listBoxLog.Items.Add($"{DateTime.Now:yyyy/MM/dd HH:mm:ss}◇{log}"), isScroll, _isLog);
 
-            labelYakitori.Text = "OK";
-            labelYakitori.BackColor = Color.Green;
+        private void Logging(string[] logs, bool isScroll = false, bool _isLog = true)
+            => Logging(listBoxLog, () => listBoxLog.Items.AddRange(logs), isScroll, _isLog);
 
-            EnabledButtons(true, false);
-        }
+        private void TextBoxYakitoriPath_TextChanged(object sender, EventArgs e) => CheckInstall(IsInstallYakitori, labelYakitori);
 
         private void ButtonYakitoriOpen_Click(object sender, EventArgs e)
-        {
-            string str = OpenFolderDialog("Yakitori Audio Converterのインストール先のフォルダを選択してください");
-            if (str != string.Empty) { textBoxYakitoriPath.Text = str; }
-        }
+             => SetFolder("Yakitori Audio Converterのインストール先のフォルダを選択してください", textBoxYakitoriPath);
 
-        private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+        private void Form1_FormClosed(object sender, FormClosedEventArgs e) => SaveSettings();
+
+        private void TextBoxFaceFXPath_TextChanged(object sender, EventArgs e) => CheckInstall(IsInstallFaceFX, labelFaceFX);
+
+        private void CheckInstall(Func<bool, bool> _isInsall, Label _label)
         {
-            try
+            if (!_isInsall(true))
             {
-
-
-                Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
-                if (textBoxYakitoriPath.Text != string.Empty)
-                {
-                    config.AppSettings.Settings["YakitoriPath"].Value = textBoxYakitoriPath.Text;
-                }
-                if (textBoxFaceFXPath.Text != string.Empty)
-                {
-                    config.AppSettings.Settings["FaceFXPath"].Value = textBoxFaceFXPath.Text;
-                }
-                if (textBoxBatch.Text != string.Empty)
-                {
-                    config.AppSettings.Settings["BatchOutputPath"].Value = textBoxBatch.Text;
-                }
-                config.AppSettings.Settings["IsShowMessageBox"].Value = ToolStripMenuItemIsShowMsg.Checked.ToString();
-
-                if (comboBoxVoiceSoft.SelectedIndex != -1)
-                {
-                    config.AppSettings.Settings["VoiceSoft"].Value = ((ItemSet)comboBoxVoiceSoft.SelectedItem).ItemValue.ToString();
-                }
-                if (textBoxParam.Text != string.Empty)
-                {
-                    config.AppSettings.Settings["VoiceParam"].Value = textBoxParam.Text;
-                }
-                config.AppSettings.Settings["CheckboxOnlyMoji"].Value = checkBoxOnlyMoji.Checked.ToString();
-                config.AppSettings.Settings["CheckboxBatch"].Value = checkBoxBatch.Checked.ToString();
-                config.AppSettings.Settings["IsUseBatchOutput"].Value = ToolStripMenuUseBatchOutput.Checked.ToString();
-
-                config.Save();
+                _label.Text = "NG";
+                _label.BackColor = Color.Red;
             }
-            catch(Exception) { 
-            }
-        }
-
-        private void TextBoxFaceFXPath_TextChanged(object sender, EventArgs e)
-        {
-            if (!IsInstallFaceFX(true))
+            else
             {
-                labelFaceFX.Text = "NG";
-                labelFaceFX.BackColor = Color.Red;
-                return;
+                _label.Text = "OK";
+                _label.BackColor = Color.Green;
+
+                EnabledButtons(true, false);
             }
-
-            labelFaceFX.Text = "OK";
-            labelFaceFX.BackColor = Color.Green;
-
-            EnabledButtons(true, false);
         }
 
         private void ButtonFaceFXOpen_Click(object sender, EventArgs e)
-        {
-            string str = OpenFolderDialog("FaceFXWrapperのインストール先のフォルダを選択してください");
-            if (str != string.Empty) { textBoxFaceFXPath.Text = str; }
-        }
+            => SetFolder("FaceFXWrapperのインストール先のフォルダを選択してください", textBoxFaceFXPath);
 
-        private void LabelFaceFX_TextChanged(object sender, EventArgs e)
-        {
-            //EnabledButtons(true, false);
-        }
-
-        private void LabelYakitori_TextChanged(object sender, EventArgs e)
-        {
-            //EnabledButtons(true, false);
-        }
-
-        //一括処理
         private async void ButtonBatch_Click(object sender, EventArgs e)
         {
             string strOutputBatch = textBoxBatch.Text;
-            if (strOutputBatch == string.Empty)
-            {
-                Logging($"一括処理の出力先フォルダを指定してください", true);
-                return;
-            }
-
-            string strWavPath = OpenFolderDialog("WAVファイルが格納されているフォルダを選択してください");
+            string strWavPath = OpenFolderDialog("WAVファイルが格納されているフォルダを選択してください", string.Empty);
             if (strWavPath == string.Empty) { return; }
 
             int iFileCount = Directory.GetFiles(strWavPath, @"*.wav").Length;
@@ -1261,30 +1264,23 @@ namespace DBVO_JPVoice_Tool
 
             if (isNotCancel)
             {
-                isNotCancel = await MakeLipAsync($@"{strWavPath}", strWavPath, true);
+                isNotCancel = await MakeLipAsync(strWavPath, strWavPath);
                 listBoxLog.Update();
             }
 
             if (isNotCancel)
             {
-                isNotCancel = await MakeFuzAsync($@"{strWavPath}", strOutputBatch, true, checkBoxBatch.Checked);
+                isNotCancel = await MakeFuzAsync(strWavPath, strOutputBatch, checkBoxBatch.Checked);
                 listBoxLog.Update();
             }
 
-            if (CancelToken is not null)
-            {
-                CancelToken.Dispose();
-                CancelToken = null;
-            }
+            DisposeCancelToken();
 
             LoggingEnd(buttonBatch.Text);
             Logging($"フォルダ：{strOutputBatch}をご確認ください", true);
             listBoxLog.Update();
 
-            if (isNotCancel && ToolStripMenuItemIsShowMsg.Checked)
-            {
-                MessageBox.Show($"処理が完了しました", buttonBatch.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+            ShowEndProcMessage(isNotCancel, buttonBatch.Text);
         }
 
         private void ButtonMakePack_Click(object sender, EventArgs e)
@@ -1293,134 +1289,126 @@ namespace DBVO_JPVoice_Tool
             formVP.ShowDialog(this);
         }
 
-        private void ComboBoxPreset_SelectedIndexChanged(object? sender, EventArgs? e)
-        {
-            EnabledButtons(true, false);
-            //buttonMakeWav.Enabled = comboBoxPreset.SelectedIndex != -1;
-            //buttonSample.Enabled = comboBoxPreset.SelectedIndex != -1;
-        }
+        private void ComboBoxPreset_SelectedIndexChanged(object? sender, EventArgs? e) => EnabledButtons(true, false);
 
-        //キャラクター取得ボタン
         private async void ButtonGetCharList_Click(object sender, EventArgs e)
         {
-            dynamic? speakers;
-
             VoiceFunction? voiceFunc = GetVoicesoft();
             if (voiceFunc is null) { return; }
 
-            speakers = await voiceFunc.GetSpeakers();
-            if (speakers is null)
-            {
-                Logging($"キャラクター一覧の取得に失敗しました。{voiceFunc.Name}が起動していることを確認してください", true);
-                return;
-            }
-
-            List<ItemSet> listSrc = new();
-
             if (voiceFunc.GetType() == typeof(StyleBertVITS2Function))
             {
-                var item = speakers.ToObject<Dictionary<string, object>>();
-                foreach (var id in item.Keys)
+                await GetCharactorAsync(voiceFunc, (spkrs, list) =>
                 {
-                    var item2 = item[id]["style2id"].ToObject<Dictionary<string, string>>();
-                    foreach (var style in item2.Keys)
+                    var items = JObject.Parse(spkrs);
+                    foreach (var item in items)
                     {
-                        listSrc.Add(new ItemSet(Convert.ToInt32(id), $"{id,3}:{item[id]["id2spk"]["0"]}:{style}"));
+                        var Infos = (JObject)items[item.Key];
+                        var styles = (JObject)Infos["style2id"];
+                        foreach (var style in styles)
+                        {
+                            Logging($"[{item.Key}]:{Infos["id2spk"]["0"]}:{style.Key}");
+                            list.Add(new ItemSet(Convert.ToInt32(item.Key), $"{Infos["id2spk"]["0"]}:{style.Key}"));
+                        }
                     }
-                }
+                });
             }
             else
             {
-                foreach (dynamic speaker in speakers)
+                await GetCharactorAsync(voiceFunc, (spkrs, list) =>
                 {
-                    foreach (dynamic style in speaker[voiceFunc.ColumNameStyles])
+                    var arrayitems = JArray.Parse(spkrs);
+                    foreach (var arrayitem in arrayitems)
                     {
-                        listSrc.Add(
-                            new ItemSet((int)style[voiceFunc.ColumNameStyleId],
-                            $"{style[voiceFunc.ColumNameStyleId],3}:{speaker[voiceFunc.ColumNameSpeakerName]}:{style[voiceFunc.ColumNameStyleName]}"));
+                        var items = (JObject)arrayitem;
+                        var styles = (JArray)items[voiceFunc.ColumNameStyles];
+                        foreach (var style in styles)
+                        {
+                            Logging($"[{style[voiceFunc.ColumNameStyleId]}]:{items[voiceFunc.ColumNameSpeakerName]}:{style[voiceFunc.ColumNameStyleName]}", true);
+                            list.Add(
+                                new ItemSet((int)style[voiceFunc.ColumNameStyleId],
+                                $"{items[voiceFunc.ColumNameSpeakerName]}:{style[voiceFunc.ColumNameStyleName]}"));
+                        }
                     }
-                }
+                });
             }
+        }
+
+        private async Task GetCharactorAsync(VoiceFunction _voiceFunv, Action<string, List<ItemSet>> _MakeSpeakerList)
+        {
+            buttonGetChar.Enabled = false;
+            var strLabel = buttonGetChar.Text;
+            buttonGetChar.Text = "取得中…";
+
+            void RestoreButton()
+            {
+                buttonGetChar.Text = strLabel;
+                buttonGetChar.Enabled = true;
+            }
+
+            Logging($"{comboBoxVoiceSoft.Text}のキャラクター一覧を取得します", true);
+
+            var listSrc = new List<ItemSet>();
+
+            try
+            {
+                string speakers = await _voiceFunv.GetSpeakers();
+
+                if (speakers is null || speakers == string.Empty)
+                {
+                    Logging($"キャラクター一覧の取得に失敗しました。{_voiceFunv.Name}が起動していることを確認してください", true);
+                    RestoreButton();
+                    return;
+                }
+
+                _MakeSpeakerList(speakers, listSrc);
+            }
+            catch { }
 
             if (listSrc.Count == 0)
             {
-                Logging($"キャラクター一覧の取得に失敗しました。{voiceFunc.Name}が起動していることを確認してください", true);
+                Logging($"キャラクター一覧の取得に失敗しました。{_voiceFunv.Name}が起動していることを確認してください", true);
+                RestoreButton();
                 return;
             }
+            else
+            {
+                comboBoxPreset.DataSource = null;
+                comboBoxPreset.DataSource = listSrc;
+                comboBoxPreset.DisplayMember = "ItemDisp";
+                comboBoxPreset.ValueMember = "ItemValue";
 
-            // ComboBoxに表示と値をセット
-            comboBoxPreset.DataSource = listSrc;
-            comboBoxPreset.DisplayMember = "ItemDisp";
-            comboBoxPreset.ValueMember = "ItemValue";
+                comboBoxPreset.SelectedIndex = 0;
+                ComboBoxPreset_SelectedIndexChanged(null, null);
+            }
 
-            comboBoxPreset.SelectedIndex = 0;
-            ComboBoxPreset_SelectedIndexChanged(null, null);
-
-            Logging($"{comboBoxVoiceSoft.Text}のキャラクター一覧を取得しました", true);
-            if (voiceFunc.GetType() == typeof(StyleBertVITS2Function))
+            if (_voiceFunv.GetType() == typeof(StyleBertVITS2Function))
             {
                 Logging($"※このボイスソフトではボイス調整は話速のみ適用され、値を上げると話速が遅くなります", true);
             }
+            Logging('-', true);
+
+            await Task.Delay(10000);
+            RestoreButton();
+            GC.Collect();
         }
 
         private async void ButtonSample_Click(object sender, EventArgs e)
         {
-            string[] strArrSampleWord = { "当ててやろうか？、誰かにスイートロールを盗まれたかな？",
-                                        "ここに来るべきじゃなかったな",
-                                        "勝利か、ソブンガルデかだ！！",
-                                        "ガラクタだって言う人もいるけど、私はたからものって呼んでるわ",
-                                        "お前のゴールドを数えるのが楽しみだ！" };
-            string strSampleWord = strArrSampleWord[new Random().Next(strArrSampleWord.Length)];
+            await ReadDefaultDictionary(true, false, false);
+            await PlaySample();
+        }
 
-            buttonSample.Enabled = false;
-            Logging($"サンプル再生中：{((ItemSet)comboBoxPreset.SelectedItem).ItemDisp}", true);
-
-            VoiceFunction? voiceFunc = GetVoicesoft();
-            if (voiceFunc is null) { return; }
-
-            int iSpeaker = (int)comboBoxPreset.SelectedValue;
-            string strStyle = comboBoxPreset.Text.Contains(':') ? comboBoxPreset.Text.Split(':')[2] : "";
-            var voiceParams = GetVoiceParams();
-            HttpStatusCode? statusCode;
-
-            if (voiceFunc.GetType() == typeof(StyleBertVITS2Function))
-            {
-                statusCode = await Task.Run(() => ((StyleBertVITS2Function)voiceFunc).MakeSound(string.Empty, strSampleWord, strStyle, iSpeaker, voiceParams));
-            }
-            else
-            {
-                statusCode = await Task.Run(() => voiceFunc.MakeSound(string.Empty, strSampleWord, true, iSpeaker, voiceParams));
-            }
-
-            if (statusCode is null)
-            {
-                Logging($"処理に失敗しました。{comboBoxVoiceSoft.Text}が起動していることを確認してください", true);
-            }
-            else if (statusCode == HttpStatusCode.UnprocessableEntity)
-            {
-                Logging($"送信されたパラメータが間違っています", true);
-            }
-            else if (statusCode != HttpStatusCode.OK)
-            {
-                Logging($"処理に失敗しました。{comboBoxVoiceSoft.Text}が起動していることを確認してください", true);
-            }
-
-            await Task.Delay(2000);
-
-            buttonSample.Enabled = true;
+        private static void SetFolder(string _msg, TextBox _txtBox)
+        {
+            string str = OpenFolderDialog(_msg, string.Empty);
+            if (str != string.Empty) { _txtBox.Text = str; }
         }
 
         private void ButtonBatchFolder_Click(object sender, EventArgs e)
-        {
-            string str = OpenFolderDialog("一括処理の出力先フォルダを指定してください");
-            if (str != string.Empty) { textBoxBatch.Text = str; }
-        }
+            => SetFolder("一括処理の出力先フォルダを指定してください", textBoxBatch);
 
-        private void TextBoxBatch_TextChanged(object sender, EventArgs e)
-        {
-            EnabledButtons(true, false);
-            //buttonBatch.Enabled = labelFaceFX.Text == "OK" && labelYakitori.Text == "OK" && textBoxBatch.Text.Length > 0;
-        }
+        private void TextBoxBatch_TextChanged(object sender, EventArgs e) => EnabledButtons(true, false);
 
         private void ButtonVoiceControl_Click(object sender, EventArgs e)
         {
@@ -1474,6 +1462,8 @@ namespace DBVO_JPVoice_Tool
 
         private async void ToolStripMenuDelXmlSpace_Click(object sender, EventArgs e)
         {
+            if (!CheckUseBatchOption()) { return; }
+
             using OpenFileDialog ofd = new()
             {
                 FileName = "",
@@ -1487,16 +1477,16 @@ namespace DBVO_JPVoice_Tool
 
             if (ofd.ShowDialog() != DialogResult.OK) { return; }
 
-            if (MessageBox.Show(
-                $"{ofd.FileNames.Length}件のXMLファイルが選択されました"
-                + "\n\n上記ファイルを読み込み日本語訳の文章から半角スペースを削除します\nよろしいですか？"
-                + "\n\n※「はい」の場合、続けて変更後のファイル出力先を決定します",
+            string strMessage = $"{ofd.FileNames.Length}件のXMLファイルが選択されました"
+                + "\n\n上記ファイルを読み込み日本語訳の文章から半角スペースを削除します\nよろしいですか？";
+
+            if (MessageBox.Show(GetMessageOutput(strMessage, GetBatchOutputPath()),
                 toolStripMenuDelXmlSpace.Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
             {
                 return;
             }
 
-            var outputFolder = OpenFolderDialog("変更後のXMLファイルの出力先を指定してください");
+            var outputFolder = OpenFolderDialog("変更後のXMLファイルの出力先を指定してください", GetBatchOutputPath());
             if (outputFolder == string.Empty) { return; }
 
             EnabledButtons(false, false);
@@ -1528,14 +1518,29 @@ namespace DBVO_JPVoice_Tool
             LoggingEnd(toolStripMenuDelXmlSpace.Text);
             EnabledButtons(true, false);
 
-            if (ToolStripMenuItemIsShowMsg.Checked)
+            ShowEndProcMessage(true, toolStripMenuDelXmlSpace.Text);
+        }
+
+        private static string GetMessageOutput(string _msg, string _outPath)
+        {
+            if (_outPath == string.Empty)
             {
-                MessageBox.Show($"処理が完了しました", toolStripMenuDelXmlSpace.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _msg += "\n\n※「はい」の場合、続けてファイル出力先を決定します";
             }
+            else
+            {
+                _msg += "\n\n※全てのファイルは、一括処理のファイル出力先に出力されます"
+                    + $"\n出力先：{_outPath}";
+            }
+            _msg += "\n\n※既に同名のフォルダやファイルが存在する場合、上書きされますのでご注意ください";
+
+            return _msg;
         }
 
         private async void ToolStripMenuMakeWavFromText_Click(object sender, EventArgs e)
         {
+            if (!CheckUseBatchOption()) { return; }
+
             using OpenFileDialog ofd = new()
             {
                 FileName = "",
@@ -1549,19 +1554,24 @@ namespace DBVO_JPVoice_Tool
 
             if (ofd.ShowDialog() != DialogResult.OK) { return; }
 
-            if (MessageBox.Show(
-                $"{ofd.FileNames.Length}件のテキストファイルが選択されました"
-                + "\n\n上記ファイルを読み込み音声(WAV)を作成します\nよろしいですか？"
-                + "\n\n※「はい」の場合、続けてファイル出力先を決定します",
-                ToolStripMenuMakeWavFromText.Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
+            string outputFolder = ToolStripMenuUseBatchOutput.Checked ? textBoxBatch.Text : string.Empty;
+
+            if (MessageBox.Show(GetMessageOutput($"{ofd.FileNames.Length}件のテキストファイルが選択されました"
+                    + "\n\n上記ファイルを読み込み音声(WAV)を作成します\nよろしいですか？", outputFolder),
+                    ToolStripMenuMakeWavFromText.Text,
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
             {
                 return;
             }
 
-            var outputFolder = OpenFolderDialog("音声(WAV)ファイルの出力先を指定してください");
-            if (outputFolder == string.Empty) { return; }
+            if ((outputFolder = OpenFolderDialog("音声(WAV)ファイルの出力先を指定してください", outputFolder)) == string.Empty)
+            {
+                return;
+            }
 
             EnabledButtons(false, false);
+
+            await ReadDefaultDictionary(true, false, true);
 
             LoggingStart(ToolStripMenuMakeWavFromText.Text);
             Logging($"処理に時間がかかりますのでしばらくお待ち下さい…経過は左下のバーに表示されます", true);
@@ -1600,7 +1610,7 @@ namespace DBVO_JPVoice_Tool
 
                     if (txtDataSplit.Length < 3)
                     {
-                        Logging($"{iCounter:D3}：設定されている項目が足りないためスキップされます");
+                        Logging($"{iCounter:D3}：設定項目不足のためスキップ…カンマではなくパイプ区切りなので注意してください");
                         iErrCounter++;
                         continue;
                     }
@@ -1655,28 +1665,31 @@ namespace DBVO_JPVoice_Tool
 
             EnabledButtons(true, false);
 
-            if (!CancelToken.Token.IsCancellationRequested && ToolStripMenuItemIsShowMsg.Checked)
-            {
-                MessageBox.Show($"処理が完了しました", ToolStripMenuMakeWavFromText.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-
-            return;
+            ShowEndProcMessage(!CancelToken.Token.IsCancellationRequested, ToolStripMenuMakeWavFromText.Text);
         }
 
-        private void listBoxLog_Leave(object sender, EventArgs e)
+        private void ListBoxLog_Leave(object sender, EventArgs e) => listBoxLog.Update();
+
+        private void DisposeCancelToken()
         {
-            listBoxLog.Update();
+            if (CancelToken is not null)
+            {
+                CancelToken.Dispose();
+                CancelToken = null;
+            }
+        }
+
+        private void ShowEndProcMessage(bool _isNotCancel, string _title)
+        {
+            if (_isNotCancel && ToolStripMenuItemIsShowMsg.Checked)
+            {
+                MessageBox.Show($"処理が完了しました", _title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         private async void ButtonBatchAll_Click(object sender, EventArgs e)
         {
             string strOutputBatch = textBoxBatch.Text;
-            if (strOutputBatch == string.Empty)
-            {
-                Logging($"一括処理の出力先フォルダを指定してください", true);
-                return;
-            }
-
             bool isNotCancel = true;
 
             if (isNotCancel)
@@ -1687,21 +1700,17 @@ namespace DBVO_JPVoice_Tool
 
             if (isNotCancel)
             {
-                isNotCancel = await MakeLipAsync(strOutputBatch, strOutputBatch, true);
+                isNotCancel = await MakeLipAsync(strOutputBatch, strOutputBatch);
                 listBoxLog.Update();
             }
 
             if (isNotCancel)
             {
-                isNotCancel = await MakeFuzAsync(strOutputBatch, strOutputBatch, true, checkBoxBatch.Checked);
+                isNotCancel = await MakeFuzAsync(strOutputBatch, strOutputBatch, checkBoxBatch.Checked);
                 listBoxLog.Update();
             }
 
-            if (CancelToken is not null)
-            {
-                CancelToken.Dispose();
-                CancelToken = null;
-            }
+            DisposeCancelToken();
 
             if (isNotCancel)
             {
@@ -1710,13 +1719,45 @@ namespace DBVO_JPVoice_Tool
                 listBoxLog.Update();
             }
 
-            if (isNotCancel && ToolStripMenuItemIsShowMsg.Checked)
-            {
-                MessageBox.Show($"処理が完了しました", buttonBatchAll.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+            ShowEndProcMessage(isNotCancel, buttonBatchAll.Text);
         }
 
-        private async Task ReadDictionary(string _path = "")
+        private List<string> ReadFile(string _filePath)
+        {
+            var list = new List<string>();
+            try
+            {
+                string? strData = string.Empty;
+
+                using FileStream fStrean = new(_filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using TextReader tReader = new StreamReader(fStrean, Encoding.UTF8);
+
+                while ((strData = tReader.ReadLine()) is not null)
+                {
+                    list.Add(strData);
+                }
+                if (list.Count == 0)
+                {
+                    Logging($"テキストファイルにデータがありませんでした");
+                    Logging('!', true);
+                }
+            }
+            catch (IOException)
+            {
+                Logging($"ファイルが使用中のため開くことができません");
+                Logging('!', true);
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// 読み＆アクセント辞書を読み込んで音声合成ソフトに登録します
+        /// </summary>
+        /// <param name="_path">辞書のパス</param>
+        /// <param name="_isLog">ログを出力するか</param>
+        /// <param name="_isTextMode">trueの場合、全ての音声合成ソフトの辞書に登録：falseの場合、選択されているソフトのみ</param>
+        /// <returns></returns>
+        private async Task ReadDictionary(string _path, bool _isLog, bool _isTextMode)
         {
             using OpenFileDialog ofd = new()
             {
@@ -1734,44 +1775,18 @@ namespace DBVO_JPVoice_Tool
             {
                 if (ofd.ShowDialog() != DialogResult.OK) { return; }
                 strDicPath = ofd.FileName;
-                LoggingStart($"読み&アクセント辞書の読み込み");
+                LoggingStart($"読み&アクセント辞書の読み込み", _isLog);
             }
             else
             {
                 strDicPath = _path;
-                LoggingStart($"デフォルトの読み&アクセント辞書の読み込み");
+                LoggingStart($"デフォルトの読み&アクセント辞書の読み込み", _isLog);
             }
 
             EnabledButtons(false, false);
 
-            string strTxtFile = Path.GetFileName(strDicPath);
-
-            Logging($"◆◆ファイルの書式チェック・・・");
-            var txtAllData = new List<string>();
-
-            try
-            {
-                string? strData = string.Empty;
-
-                using FileStream fStrean = new(strDicPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                using TextReader tReader = new StreamReader(fStrean, Encoding.UTF8);
-
-                while ((strData = tReader.ReadLine()) is not null)
-                {
-                    txtAllData.Add(strData);
-                }
-                if (txtAllData.Count == 0)
-                {
-                    Logging($"テキストファイルにデータがありませんでした");
-                    Logging('!', true);
-                }
-            }
-            catch (IOException)
-            {
-                Logging($"ファイルが使用中のため開くことができません");
-                Logging('!', true);
-            }
-
+            Logging($"◆◆ファイルの書式チェック・・・", false, _isLog);
+            var txtAllData = ReadFile(strDicPath);
 
             var listData = new List<VoiceDictionary>(txtAllData.Count);
             int iCounter = 0;
@@ -1787,23 +1802,23 @@ namespace DBVO_JPVoice_Tool
 
                 ++iCounter;
 
-                if (txtDataSplit.Length < 4)
+                if (txtDataSplit.Length < 3)
                 {
-                    Logging($"{iCounter:D3}：設定されている項目が足りないためスキップされます");
+                    Logging($"{iCounter:D3}：設定項目が不足しています「テキスト,読み,アクセント,音数」", false, _isLog);
                     iErrCounter++;
                     continue;
                 }
 
                 if (!int.TryParse(txtDataSplit[2], out int iAccent))
                 {
-                    Logging($"{iCounter:D3}：3列目の項目(アクセント)が間違っているためスキップされます");
+                    Logging($"{iCounter:D3}：3列目の項目(アクセント)が間違っているためスキップされます", false, _isLog);
                     iErrCounter++;
                     continue;
                 }
 
                 if (txtDataSplit.Length >= 4 && !int.TryParse(txtDataSplit[3], out int iMoranum))
                 {
-                    Logging($"{iCounter:D3}：4列目の項目(音数)が間違っているためスキップされます");
+                    Logging($"{iCounter:D3}：4列目の項目(音数)が間違っているためスキップされます", false, _isLog);
                     iErrCounter++;
                     continue;
                 }
@@ -1816,83 +1831,55 @@ namespace DBVO_JPVoice_Tool
                 };
 
                 listData.Add(voiceDict);
-                Logging($"{iCounter:D3}：{voiceDict.Text},{voiceDict.Yomi},{voiceDict.Accent},{voiceDict.Moranum}");
+                Logging($"{iCounter:D3}：{voiceDict.Text},{voiceDict.Yomi},{voiceDict.Accent},{voiceDict.Moranum}", false, _isLog);
             }
 
-            Logging($"◆データ件数：{iCounter}  スキップ件数：{iErrCounter}", true);
-            Logging();
-            Logging($"◆◆COEIROINKの辞書を登録しています・・・", true);
+            Logging($"◆データ件数：{iCounter}  スキップ件数：{iErrCounter}", false, _isLog);
+            Logging('-', true, _isLog);
 
-            var jsonObj = new JObject();
-            var jsonArray = new JArray();
-
-            foreach (var voice in listData)
+            async Task SetDictionary(VoiceFunction vfunc)
             {
-                var jObject = new JObject()
+                Logging($"◆◆{vfunc.Name}：辞書を登録しています・・・", true, _isLog);
+
+                var resCoe = await vfunc.SetDictionary(listData);
+                if (resCoe is null)
                 {
-                    ["word"] = voice.Text,
-                    ["yomi"] = voice.Yomi,
-                    ["accent"] = voice.Accent,
-                    ["numMoras"] = voice.Moranum
-                };
-
-                jsonArray.Add(jObject);
+                    Logging($"{vfunc.Name}：処理に失敗しました");
+                }
+                else if (resCoe == HttpStatusCode.RequestTimeout)
+                {
+                    Logging($"{vfunc.Name}：起動していないため登録をスキップします");
+                }
+                else if (resCoe != HttpStatusCode.OK)
+                {
+                    Logging($"{vfunc.Name}：処理に失敗しました：{resCoe}");
+                }
             }
 
-            jsonObj.Add("dictionaryWords", jsonArray);
-
-            var coeiroFunc = new CoeiroinkFunction();
-            var resCoe = await coeiroFunc.SetDictionary(jsonObj);
-            if (resCoe is null)
+            if (_isTextMode || ((ItemSet)comboBoxVoiceSoft.SelectedItem).ItemValue == (int)VoiceSoft.Coeiroink)
             {
-                Logging("処理に失敗しました");
-            }
-            else if (resCoe == HttpStatusCode.RequestTimeout)
-            {
-                Logging($"COEIROINKが起動していないため登録をスキップします");
-            }
-            else if (resCoe != HttpStatusCode.OK)
-            {
-                Logging($"処理に失敗しました：{resCoe}");
+                await SetDictionary(new CoeiroinkFunction());
             }
 
-            Logging($"◆◆VOICEVOXの辞書を登録しています・・・", true);
-            var voicevoxFunc = new VoicevoxFunction();
-
-            var resvox = await voicevoxFunc.SetDictionary(listData);
-            if (resvox is null)
+            if (_isTextMode ||
+                ((ItemSet)comboBoxVoiceSoft.SelectedItem).ItemValue == (int)VoiceSoft.Voicevox ||
+                ((ItemSet)comboBoxVoiceSoft.SelectedItem).ItemValue == (int)VoiceSoft.Nemo ||
+                ((ItemSet)comboBoxVoiceSoft.SelectedItem).ItemValue == (int)VoiceSoft.Itvoice ||
+                ((ItemSet)comboBoxVoiceSoft.SelectedItem).ItemValue == (int)VoiceSoft.Sharevoice
+                )
             {
-                Logging("処理に失敗しました");
-            }
-            else if (resvox == HttpStatusCode.RequestTimeout)
-            {
-                Logging($"VOICEVOXが起動していないため登録をスキップします");
-            }
-            else if (resvox != HttpStatusCode.OK)
-            {
-                Logging($"処理に失敗しました コード：{resvox}");
+                await SetDictionary(new VoicevoxFunction());
             }
 
-            LoggingEnd("読み&アクセント辞書の読み込み");
+            LoggingEnd("読み&アクセント辞書の読み込み", _isLog);
             EnabledButtons(true, false);
         }
 
         private async void ToolStripMenuReadDicDefault_Click(object sender, EventArgs e)
-        {
-            if (File.Exists(DefaultDictionary))
-            {
-                await ReadDictionary(DefaultDictionary);
-            }
-            else
-            {
-                Logging("デフォルトの読み&アクセント辞書「DefaultDictionary.csv」がありません", true);
-            }
-        }
+            => await ReadDefaultDictionary(false, true, true);
 
         private async void ToolStripMenuReadDicTxt_Click(object sender, EventArgs e)
-        {
-            await ReadDictionary();
-        }
+            => await ReadDictionary("", true, true);
 
         private void ButtonLogClear_Click(object sender, EventArgs e)
         {
@@ -1939,669 +1926,39 @@ namespace DBVO_JPVoice_Tool
                 proc.Start();
             }
         }
-    }
 
-    public struct VoiceDictionary
-    {
-        public string Text { get; set; }
-        public string Yomi { get; set; }
-        public int Accent { get; set; }
-        public int Moranum {  get; set; }
+        private async void ButtonSampleText_Click(object sender, EventArgs e)
+        {
+            string strText;
+
+            if ((strText = Interaction.InputBox(
+                "選択されたキャラクターに喋らせたい文字列を入力してください"
+                , "文字列を指定してサンプル再生", textBoxSample.Text, Left + 200, Top + 100).Trim()) == string.Empty)
+            { return; }
+            textBoxSample.Text = strText;
+
+            await ReadDefaultDictionary(true, false, false);
+            await PlaySample(strText);
+        }
     }
 
     public class ItemSet
     {
         // DisplayMemberとValueMemberにはプロパティで指定する仕組み
-        public String ItemDisp { get; set; }
+        public string ItemDisp { get; set; }
         public int ItemValue { get; set; }
 
         // プロパティをコンストラクタでセット
-        public ItemSet(int v, String s)
+        public ItemSet(int v, string s)
         {
             ItemValue = v;
             ItemDisp = s;
         }
 
-        public ItemSet(string v, String s)
+        public ItemSet(string v, string s)
         {
             ItemValue = int.Parse(v);
             ItemDisp = s;
-        }
-    }
-
-    public class VoiceFunction
-    {
-        private const string strDefaultIP = "127.0.0.1";
-
-        protected readonly string ipPort;
-        protected static readonly HttpClient httpClient = new();
-
-        public virtual string? Name { get; }
-        public virtual string? ColumNameStyles { get; }
-        public virtual string? ColumNameStyleId { get;  }
-        public virtual string? ColumNameStyleName { get;  }
-        public virtual string? ColumNameSpeakerName { get;  }
-
-        public VoiceFunction(int _port) : this(strDefaultIP, _port)
-        {
-            //ipPort = $"http://{strDefaultIP}:{_port}";
-            //httpClient = new HttpClient();
-        }
-
-        public VoiceFunction(string _ipAdress, int _port)
-        {
-            //HttpClientHandler handler = new()
-            //{
-            //    UseProxy = false
-            //};
-            ipPort = $"http://{_ipAdress}:{_port}";
-            //httpClient = new HttpClient(handler);
-        }
-
-        private static async Task<string> GetSpeakersAsJson(string _reqUri)
-        {
-            using var request = new HttpRequestMessage(new HttpMethod("GET"), _reqUri);
-            request.Headers.TryAddWithoutValidation("accept", "application/json");
-
-            try
-            {
-                var response = await httpClient.SendAsync(request);
-                return await response.Content.ReadAsStringAsync();
-            }
-            catch (HttpRequestException)
-            {
-                return "";
-            }
-            catch (Exception)
-            {
-                return "";
-            }
-        }
-
-        private static async Task<HttpResponseMessage> GetRequest(string _url, string _header)
-        {
-            using var request = new HttpRequestMessage(new HttpMethod("GET"), _url);
-            request.Headers.TryAddWithoutValidation("accept", _header);
-
-            return await httpClient.SendAsync(request);
-        }
-
-        private static async Task<HttpResponseMessage> PutRequest(string _url, string _header)
-        {
-            using var request = new HttpRequestMessage(new HttpMethod("PUT"), _url);
-            request.Headers.TryAddWithoutValidation("accept", _header);
-
-            return await httpClient.SendAsync(request);
-        }
-
-        private static async Task<HttpResponseMessage> SendRequest(string _url, string _header, string _ctype, string _content = "")
-        {
-            using var request = new HttpRequestMessage(new HttpMethod("POST"), _url);
-
-            request.Headers.TryAddWithoutValidation("accept", _header);
-            request.Content = new StringContent(_content);
-            request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(_ctype);
-
-            return await httpClient.SendAsync(request);
-        }
-
-        private static async Task<HttpResponseMessage> SendRequest(string _url, string _header, MultipartFormDataContent _content)
-        {
-            using var request = new HttpRequestMessage(new HttpMethod("POST"), _url);
-            request.Headers.TryAddWithoutValidation("accept", _header);
-            request.Content = _content;
-
-            return await httpClient.SendAsync(request);
-        }
-
-        protected static async Task<HttpResponseMessage?> GetJson(string _url)
-        {
-            return await GetRequest(_url, "application/json");
-        }
-
-        protected static async Task<HttpResponseMessage?> PutJson(string _url)
-        {
-            return await PutRequest(_url, "*/*");
-        }
-
-        protected static async Task<HttpResponseMessage?> AcceptJson(string _url)
-        {
-            return await SendRequest(_url, "application/json", "application/x-www-form-urlencoded");
-        }
-
-        protected static async Task<HttpResponseMessage?> AcceptJson(string _url, string _content)
-        {
-            return await SendRequest(_url, "application/json", "application/json", _content);
-        }
-
-        protected static async Task<HttpResponseMessage?> AcceptAudio(string _url, string _content)
-        {
-            return await SendRequest(_url, "audio/wav", "application/json", _content);
-        }
-
-        protected static async Task<HttpResponseMessage?> AcceptAudio(string _url)
-        {
-            return await SendRequest(_url, "audio/wav", "application/x-www-form-urlencoded");
-        }
-
-        protected static async Task<HttpResponseMessage?> AcceptAudio(string _url, MultipartFormDataContent _content)
-        {
-            return await SendRequest(_url, "audio/wav", _content);
-        }
-
-        protected static async Task<byte[]?> AcceptAudioByte(string _url)
-        {
-            try
-            {
-                var response = await SendRequest(_url, "audio/wav", "application/x-www-form-urlencoded");
-                if (response.StatusCode == HttpStatusCode.OK)
-                {
-                    return await response.Content.ReadAsByteArrayAsync();
-                }
-            }
-            catch (HttpRequestException)
-            {
-            }
-            return null;
-        }
-
-        public virtual dynamic? GetSpeakers() { return null; }
-
-        public async Task<dynamic?> GetSpeakersAsync(string _command)
-        {
-            var strJsonStr = await Task.Run(() => GetSpeakersAsJson($"{ipPort}/{_command}"));
-
-            return JsonConvert.DeserializeObject(strJsonStr);
-        }
-
-        public virtual Task<HttpStatusCode?>? MakeSound(string _title, string _text, bool _upspeak, int _speakerId, double[] param)
-        { 
-            return null;
-        }
-
-        protected static void Play(in Stream stream)
-        {
-            var player = new SoundPlayer(stream);
-            player.Play();
-        }
-
-        protected static void Save(string _title, in Stream _stream)
-        {
-            var dirName = Path.GetDirectoryName(_title);
-            if (dirName is null || dirName == string.Empty) { return; }
-
-            if (!Directory.Exists(dirName))
-            {
-                Directory.CreateDirectory(dirName);
-            }
-
-            using var fileStream = File.Create($"{_title}.wav");
-
-            _stream.CopyTo(fileStream);
-            fileStream.Flush();
-        }
-    }
-
-    public class VoicevoxFunction : VoiceFunction
-    {
-        private const int DefaultPort = 50021;
-
-        public override string Name
-        {
-            get { return "VOICEVOX"; }
-        }
-
-        public override string ColumNameStyles
-        {
-            get { return "styles"; }
-        }
-        public override string ColumNameStyleId
-        {
-            get { return "id"; }
-        }
-
-        public override string ColumNameStyleName
-        {
-            get { return "name"; }
-        }
-
-        public override string ColumNameSpeakerName
-        {
-            get { return "name"; }
-        }
-
-
-        public VoicevoxFunction() : base(DefaultPort) { }
-
-        public VoicevoxFunction(int _port) : base(_port) { }
-
-        public VoicevoxFunction(string _ipAdress, int _port) : base(_ipAdress, _port) { }
-
-        public override dynamic? GetSpeakers()
-        {
-            return base.GetSpeakersAsync("speakers");
-        }
-
-        public async Task<HttpStatusCode?> SetDictionary(List<VoiceDictionary> _list)
-        {
-            try
-            {
-                var resGet = await GetJson($"{ipPort}/user_dict");
-                if (resGet is null)
-                {
-                    return HttpStatusCode.RequestTimeout;
-                }
-
-                var strResGet = await resGet.Content.ReadAsStringAsync();
-                if (strResGet is null)
-                {
-                    return HttpStatusCode.RequestTimeout;
-                }
-                var dctResGet = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(strResGet);
-                if (dctResGet is null)
-                {
-                    return HttpStatusCode.RequestTimeout;
-                }
-
-                foreach (var voice in _list)
-                {
-                    string strUuid = string.Empty;
-
-                    foreach (var key in dctResGet.Keys)
-                    {
-                        if (dctResGet[key].Where(x => x.Key == "surface" && x.Value == voice.Text).Count() > 0)
-                        {
-                            strUuid = key;
-                            break;
-                        }
-                    }
-
-                    HttpResponseMessage? res;
-
-                    if (strUuid == string.Empty)
-                    {
-                        res = await AcceptJson($"{ipPort}/user_dict_word?surface={voice.Text}&pronunciation={voice.Yomi}&accent_type={voice.Accent}"
-                            + "&word_type=COMMON_NOUN&priority=9");
-                    }
-                    else
-                    {
-                        res = await PutJson($"{ipPort}/user_dict_word/{strUuid}?surface={voice.Text}&pronunciation={voice.Yomi}&accent_type={voice.Accent}"
-                            + "&word_type=COMMON_NOUN&priority=9");
-                    }
-                    if (res is null)
-                    {
-                        return HttpStatusCode.RequestTimeout;
-                    }
-                    else if (res.StatusCode != HttpStatusCode.OK && res.StatusCode != HttpStatusCode.NoContent)
-                    {
-                        return res.StatusCode;
-                    }
-                }
-            }
-            catch (SocketException)
-            {
-                return HttpStatusCode.RequestTimeout;
-            }
-            catch (Exception)
-            {
-                return HttpStatusCode.RequestTimeout;
-            }
-            return HttpStatusCode.OK;
-        }
-
-        public override async Task<HttpStatusCode?> MakeSound(string _title, string _text, bool _upspeak, int _speakerId, double[] param)
-        {
-            try
-            {
-                var res = await AcceptJson($"{ipPort}/audio_query?text={_text}&speaker={_speakerId}");
-                if (res is null)
-                {
-                    return HttpStatusCode.RequestTimeout;
-                }
-                else if (res.StatusCode != HttpStatusCode.OK)
-                {
-                    return res.StatusCode;
-                }
-            
-                //ボイス調整
-                var audioQuery = JsonConvert.DeserializeObject<Dictionary<string, object>>(await res.Content.ReadAsStringAsync());
-                if(audioQuery is null) { return null; }
-
-                audioQuery["speedScale"] = param[0];
-                audioQuery["pitchScale"] = param[1];
-                audioQuery["intonationScale"] = param[2];
-                audioQuery["volumeScale"] = param[3];
-
-                string strChangeQuery = JsonConvert.SerializeObject(audioQuery, Formatting.Indented);
-
-                var httpStream = await AcceptAudio($"{ipPort}/synthesis?speaker={_speakerId}&enable_interrogative_upspeak={_upspeak}", strChangeQuery);
-                if (httpStream is not null)
-                {
-                    if(httpStream.StatusCode != HttpStatusCode.OK)
-                    {
-                        return httpStream.StatusCode;
-                    }
-                    if (_title == string.Empty)
-                    {
-                        VoiceFunction.Play(httpStream.Content.ReadAsStream());
-                    }
-                    else
-                    {
-                        VoiceFunction.Save(_title, httpStream.Content.ReadAsStream());
-                    }
-                }
-                else
-                {
-                    return null;
-                }
-            }
-            catch (HttpRequestException)
-            {
-                return HttpStatusCode.RequestTimeout;
-            }
-
-            return HttpStatusCode.OK;
-        }
-    }
-
-    public class VoicevoxNemoFunction : VoicevoxFunction
-    {
-        private const int DefaultPort = 50121;
-
-        public override string Name
-        {
-            get { return "VOICEVOX Nemo"; }
-        }
-
-        public VoicevoxNemoFunction() : base(DefaultPort) { }
-
-        public VoicevoxNemoFunction(int _port) : base(_port) { }
-
-        public VoicevoxNemoFunction(string _ipAdress, int _port) : base(_ipAdress, _port) { }
-    }
-
-    public class SharevoiceFunction : VoicevoxFunction
-    {
-        private const int DefaultPort = 50025;
-
-        public override string Name
-        {
-            get { return "SHAREVOICE"; }
-        }
-
-        public SharevoiceFunction() : base(DefaultPort) { }
-
-        public SharevoiceFunction(int _port) : base(_port) { }
-
-        public SharevoiceFunction(string _ipAdress, int _port) : base(_ipAdress, _port) { }
-    }
-
-    public class ItvoiceFunction : VoicevoxFunction
-    {
-        private const int DefaultPort = 49540;
-
-        public override string Name
-        {
-            get { return "ITVOICE"; }
-        }
-
-        public ItvoiceFunction() : base(DefaultPort) { }
-
-        public ItvoiceFunction(int _port) : base(_port) { }
-
-        public ItvoiceFunction(string _ipAdress, int _port) : base(_ipAdress, _port) { }
-    }
-
-    public class CoeiroinkFunction : VoiceFunction
-    {
-        private const int DefaultPort = 50032;
-
-        public override string Name
-        {
-            get { return "COEIROINK"; }
-        }
-
-        public override string ColumNameStyles
-        {
-            get { return "styles"; }
-        }
-        public override string ColumNameStyleId
-        {
-            get { return "styleId"; }
-        }
-
-        public override string ColumNameStyleName
-        {
-            get { return "styleName"; }
-        }
-
-        public override string ColumNameSpeakerName
-        {
-            get { return "speakerName"; }
-        }
-
-        public CoeiroinkFunction() : base(DefaultPort) { }
-
-        public CoeiroinkFunction(int _port) : base(_port) { }
-
-        public CoeiroinkFunction(string _ipAdress, int _port) : base(_ipAdress, _port) { }
-
-        public override dynamic? GetSpeakers()
-        {
-            return base.GetSpeakersAsync("v1/speakers");
-        }
-
-        private async Task<HttpResponseMessage?> SpeakerInfoFromIdAsync(int _id)
-        {
-            return await AcceptJson($"{ipPort}/v1/style_id_to_speaker_meta?styleId={_id}");
-        }
-
-        public async Task<HttpStatusCode?> SetDictionary(JObject _dic)
-        {
-            try
-            {
-                var res = await AcceptJson($"{ipPort}/v1/set_dictionary", JsonConvert.SerializeObject(_dic, Formatting.Indented));
-                if (res is null)
-                {
-                    return HttpStatusCode.RequestTimeout;
-                }
-                else if (res.StatusCode != HttpStatusCode.OK)
-                {
-                    return res.StatusCode;
-                }
-            }
-            catch (Exception )
-            {
-                return HttpStatusCode.RequestTimeout;
-            }
-            return HttpStatusCode.OK;
-        }
-
-        public override async Task<HttpStatusCode?> MakeSound(string _title, string _text, bool _upspeak, int _speakerId, double[] param)
-        {
-            try
-            {
-                var res = await SpeakerInfoFromIdAsync(_speakerId);
-                if(res is null)
-                {
-                    return HttpStatusCode.RequestTimeout;
-                }
-                else if (res.StatusCode != HttpStatusCode.OK)
-                {
-                    return res.StatusCode;
-                }
-
-                var speakerInfo = JsonConvert.DeserializeObject<Dictionary<string, object>>(await res.Content.ReadAsStringAsync());
-                if (speakerInfo is null) { return null; }
-
-                //音声ファイルの取得
-                var dicRoot = new Dictionary<string, object>
-                {
-                    { "speakerUuid", speakerInfo["speakerUuid"] },
-                    { "styleId", _speakerId },
-                    { "text", _text },
-                    { "speedScale", param[0] }
-                };
-
-                string strChangeQuery = JsonConvert.SerializeObject(dicRoot, Formatting.Indented);
-
-                var resAudio = await AcceptAudio($"{ipPort}/v1/predict", strChangeQuery);
-                if (resAudio is null) { return null; }
-
-                using var multipartContent = new MultipartFormDataContent();
-                var audioFile = new ByteArrayContent(resAudio.Content.ReadAsByteArrayAsync().Result);
-                audioFile.Headers.Add("Content-Type", "audio/wav");
-                multipartContent.Add(audioFile, "wav", "sample");
-                multipartContent.Add(new StringContent(param[3].ToString()), "volumeScale");
-                multipartContent.Add(new StringContent(param[1].ToString()), "pitchScale");
-                multipartContent.Add(new StringContent(param[2].ToString()), "intonationScale");
-                multipartContent.Add(new StringContent("0.1"), "prePhonemeLength");
-                multipartContent.Add(new StringContent("0.1"), "postPhonemeLength");
-                multipartContent.Add(new StringContent("44100"), "outputSamplingRate");
-
-                var resAudioControl = await AcceptAudio($"{ipPort}/v1/process", multipartContent);
-
-                if (resAudioControl is null) { return null;}
-                if (resAudioControl.StatusCode != HttpStatusCode.OK)
-                {
-                    return resAudioControl.StatusCode;
-                }
-
-                using var httpStream = await resAudioControl.Content.ReadAsStreamAsync();
-                if(httpStream is null) { return null;}
-
-                if (_title == string.Empty)
-                {
-                    VoiceFunction.Play(httpStream);
-                }
-                else
-                {
-                    VoiceFunction.Save(_title, httpStream);
-                }
-            }
-            catch (HttpRequestException)
-            {
-                return HttpStatusCode.RequestTimeout;
-            }
-
-            return HttpStatusCode.OK;
-        }
-    }
-
-    public class StyleBertVITS2Function : VoiceFunction
-    {
-        private const int DefaultPort = 5000;
-
-        public override string Name
-        {
-            get { return "Style-Bert-VITS2"; }
-        }
-
-        public StyleBertVITS2Function() : base(DefaultPort) { }
-
-        public StyleBertVITS2Function(int _port) : base(_port) { }
-
-        public StyleBertVITS2Function(string _ipAdress, int _port) : base(_ipAdress, _port) { }
-
-        public override dynamic? GetSpeakers()
-        {
-            return base.GetSpeakersAsync("models/info");
-        }
-
-        public async Task<HttpStatusCode?> MakeSound(string _title, string _text, string _style, int _speakerId, double[] param)
-        {
-            StringBuilder strParam = new($"text={_text}");
-            strParam.Append($"&model_id={_speakerId}");
-            strParam.Append($"&length={param[0]}");
-            if (_style != string.Empty)
-            {
-                strParam.Append($"&style={_style}");
-            }
-            //strParam.Append($"&speaker_id=0&sdp_ratio=0.2&noise=0.6&noisew=0.8&language=JP&auto_split=true&split_interval=0.5&assist_text_weight=1&style_weight=5");
-
-            try { 
-                var httpStream = await AcceptAudio($"{ipPort}/voice?{strParam}");
-                if (httpStream is not null)
-                {
-                    if (httpStream.StatusCode != HttpStatusCode.OK)
-                    {
-                        return httpStream.StatusCode;
-                    }
-                    if (_title == string.Empty)
-                    {
-                        VoiceFunction.Play(httpStream.Content.ReadAsStream());
-                    }
-                    else
-                    {
-                        VoiceFunction.Save(_title, httpStream.Content.ReadAsStream());
-                    }
-                }
-                else
-                {
-                    return HttpStatusCode.RequestTimeout;
-                }
-            }
-            catch (HttpRequestException)
-            {
-                return HttpStatusCode.RequestTimeout;
-            }
-
-            return HttpStatusCode.OK;
-        }
-    }
-
-    internal class FlickerFreeListBox : System.Windows.Forms.ListBox
-    {
-        public FlickerFreeListBox()
-        {
-            this.SetStyle(
-                ControlStyles.OptimizedDoubleBuffer |
-                ControlStyles.ResizeRedraw |
-                ControlStyles.UserPaint,
-                true);
-            this.DrawMode = DrawMode.OwnerDrawFixed;
-        }
-        protected override void OnDrawItem(DrawItemEventArgs e)
-        {
-            if (this.Items.Count > 0)
-            {
-                e.DrawBackground();
-                e.Graphics.DrawString(this.Items[e.Index].ToString(), e.Font, new SolidBrush(this.ForeColor), new PointF(e.Bounds.X, e.Bounds.Y));
-            }
-            base.OnDrawItem(e);
-        }
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            Region iRegion = new Region(e.ClipRectangle);
-            e.Graphics.FillRegion(new SolidBrush(this.BackColor), iRegion);
-            if (this.Items.Count > 0)
-            {
-                for (int i = 0; i < this.Items.Count; ++i)
-                {
-                    System.Drawing.Rectangle irect = this.GetItemRectangle(i);
-                    if (e.ClipRectangle.IntersectsWith(irect))
-                    {
-                        if ((this.SelectionMode == SelectionMode.One && this.SelectedIndex == i)
-                        || (this.SelectionMode == SelectionMode.MultiSimple && this.SelectedIndices.Contains(i))
-                        || (this.SelectionMode == SelectionMode.MultiExtended && this.SelectedIndices.Contains(i)))
-                        {
-                            OnDrawItem(new DrawItemEventArgs(e.Graphics, this.Font,
-                                irect, i,
-                                DrawItemState.Selected, this.ForeColor,
-                                this.BackColor));
-                        }
-                        else
-                        {
-                            OnDrawItem(new DrawItemEventArgs(e.Graphics, this.Font,
-                                irect, i,
-                                DrawItemState.Default, this.ForeColor,
-                                this.BackColor));
-                        }
-                        iRegion.Complement(irect);
-                    }
-                }
-            }
-            base.OnPaint(e);
         }
     }
 }

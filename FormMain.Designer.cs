@@ -53,6 +53,7 @@
             buttonProcCancel = new Button();
             buttonBatchAll = new Button();
             checkBoxOnlyMoji = new CheckBox();
+            buttonSampleText = new Button();
             groupBox3 = new GroupBox();
             labelFaceFX = new Label();
             textBoxFaceFXPath = new TextBox();
@@ -74,6 +75,7 @@
             ToolStripMenuOption = new ToolStripMenuItem();
             ToolStripMenuItemIsShowMsg = new ToolStripMenuItem();
             ToolStripMenuUseBatchOutput = new ToolStripMenuItem();
+            ToolStripMenuReadDicOption = new ToolStripMenuItem();
             ToolStripMenuReadDctionary = new ToolStripMenuItem();
             toolStripMenuReadDicDef = new ToolStripMenuItem();
             ToolStripMenuReadDicTxt = new ToolStripMenuItem();
@@ -82,6 +84,7 @@
             ToolStripMenuOpenDictOther = new ToolStripMenuItem();
             textBoxSearch = new TextBox();
             buttonLogClear = new Button();
+            textBoxSample = new TextBox();
             groupBox2.SuspendLayout();
             groupBox3.SuspendLayout();
             groupBox4.SuspendLayout();
@@ -102,7 +105,7 @@
             listBoxLog.Name = "listBoxLog";
             listBoxLog.Size = new Size(745, 484);
             listBoxLog.TabIndex = 1;
-            listBoxLog.Leave += listBoxLog_Leave;
+            listBoxLog.Leave += ListBoxLog_Leave;
             // 
             // label2
             // 
@@ -194,7 +197,6 @@
             labelYakitori.Size = new Size(27, 17);
             labelYakitori.TabIndex = 23;
             labelYakitori.Text = "NG";
-            labelYakitori.TextChanged += LabelYakitori_TextChanged;
             // 
             // buttonYakitoriOpen
             // 
@@ -308,11 +310,10 @@
             buttonSample.Enabled = false;
             buttonSample.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
             buttonSample.Image = Properties.Resources.AudioPlayback;
-            buttonSample.Location = new Point(317, 79);
+            buttonSample.Location = new Point(321, 79);
             buttonSample.Name = "buttonSample";
-            buttonSample.Size = new Size(69, 23);
+            buttonSample.Size = new Size(23, 23);
             buttonSample.TabIndex = 30;
-            buttonSample.Text = "サンプル";
             buttonSample.TextImageRelation = TextImageRelation.TextBeforeImage;
             toolTip.SetToolTip(buttonSample, "選択されたキャラクターのサンプルボイスを再生します\r\n\r\n※音声が再生されるので注意してください");
             buttonSample.UseVisualStyleBackColor = true;
@@ -321,7 +322,7 @@
             // buttonGetChar
             // 
             buttonGetChar.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
-            buttonGetChar.Location = new Point(317, 47);
+            buttonGetChar.Location = new Point(318, 48);
             buttonGetChar.Name = "buttonGetChar";
             buttonGetChar.Size = new Size(69, 23);
             buttonGetChar.TabIndex = 31;
@@ -333,7 +334,7 @@
             // buttonVoiceControl
             // 
             buttonVoiceControl.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
-            buttonVoiceControl.Location = new Point(98, 111);
+            buttonVoiceControl.Location = new Point(96, 113);
             buttonVoiceControl.Name = "buttonVoiceControl";
             buttonVoiceControl.Size = new Size(54, 23);
             buttonVoiceControl.TabIndex = 32;
@@ -389,6 +390,20 @@
             toolTip.SetToolTip(checkBoxOnlyMoji, resources.GetString("checkBoxOnlyMoji.ToolTip"));
             checkBoxOnlyMoji.UseVisualStyleBackColor = true;
             // 
+            // buttonSampleText
+            // 
+            buttonSampleText.Enabled = false;
+            buttonSampleText.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
+            buttonSampleText.Image = (Image)resources.GetObject("buttonSampleText.Image");
+            buttonSampleText.Location = new Point(346, 78);
+            buttonSampleText.Name = "buttonSampleText";
+            buttonSampleText.Size = new Size(40, 23);
+            buttonSampleText.TabIndex = 38;
+            buttonSampleText.TextImageRelation = TextImageRelation.TextBeforeImage;
+            toolTip.SetToolTip(buttonSampleText, "選択されたキャラクターのサンプルボイスを再生します\r\nこのボタンはフリーテキストで好きな文章を喋らせることができます。\r\n\r\n※音声が再生されるので注意してください");
+            buttonSampleText.UseVisualStyleBackColor = true;
+            buttonSampleText.Click += ButtonSampleText_Click;
+            // 
             // groupBox3
             // 
             groupBox3.Controls.Add(labelFaceFX);
@@ -416,7 +431,6 @@
             labelFaceFX.Size = new Size(27, 17);
             labelFaceFX.TabIndex = 22;
             labelFaceFX.Text = "NG";
-            labelFaceFX.TextChanged += LabelFaceFX_TextChanged;
             // 
             // textBoxFaceFXPath
             // 
@@ -472,7 +486,7 @@
             comboBoxVoiceSoft.FormattingEnabled = true;
             comboBoxVoiceSoft.Location = new Point(96, 47);
             comboBoxVoiceSoft.Name = "comboBoxVoiceSoft";
-            comboBoxVoiceSoft.Size = new Size(215, 25);
+            comboBoxVoiceSoft.Size = new Size(219, 25);
             comboBoxVoiceSoft.TabIndex = 24;
             comboBoxVoiceSoft.TextChanged += ComboBoxVoiceSoft_TextChanged;
             // 
@@ -483,7 +497,7 @@
             comboBoxPreset.FormattingEnabled = true;
             comboBoxPreset.Location = new Point(96, 79);
             comboBoxPreset.Name = "comboBoxPreset";
-            comboBoxPreset.Size = new Size(215, 25);
+            comboBoxPreset.Size = new Size(219, 25);
             comboBoxPreset.TabIndex = 25;
             comboBoxPreset.SelectedIndexChanged += ComboBoxPreset_SelectedIndexChanged;
             // 
@@ -502,7 +516,7 @@
             label1.AutoSize = true;
             label1.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
             label1.ForeColor = SystemColors.ControlLightLight;
-            label1.Location = new Point(10, 50);
+            label1.Location = new Point(8, 50);
             label1.Name = "label1";
             label1.Size = new Size(80, 15);
             label1.TabIndex = 27;
@@ -513,7 +527,7 @@
             label3.AutoSize = true;
             label3.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
             label3.ForeColor = SystemColors.ControlLightLight;
-            label3.Location = new Point(32, 82);
+            label3.Location = new Point(28, 82);
             label3.Name = "label3";
             label3.Size = new Size(60, 15);
             label3.TabIndex = 28;
@@ -524,7 +538,7 @@
             label4.AutoSize = true;
             label4.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
             label4.ForeColor = SystemColors.ControlLightLight;
-            label4.Location = new Point(31, 115);
+            label4.Location = new Point(28, 115);
             label4.Name = "label4";
             label4.Size = new Size(59, 15);
             label4.TabIndex = 29;
@@ -565,6 +579,7 @@
             toolStripMenuDelXmlSpace.Name = "toolStripMenuDelXmlSpace";
             toolStripMenuDelXmlSpace.Size = new Size(289, 22);
             toolStripMenuDelXmlSpace.Text = "翻訳用XMLの空白削除";
+            toolStripMenuDelXmlSpace.ToolTipText = resources.GetString("toolStripMenuDelXmlSpace.ToolTipText");
             toolStripMenuDelXmlSpace.Click += ToolStripMenuDelXmlSpace_Click;
             // 
             // ToolStripMenuXmltoJson
@@ -573,18 +588,19 @@
             ToolStripMenuXmltoJson.Size = new Size(289, 22);
             ToolStripMenuXmltoJson.Text = "翻訳用XMLからDBVO用辞書(JSON)を作成";
             ToolStripMenuXmltoJson.ToolTipText = resources.GetString("ToolStripMenuXmltoJson.ToolTipText");
-            ToolStripMenuXmltoJson.Click += ButtonXmltoJson_Click;
+            ToolStripMenuXmltoJson.Click += ToolStripMenuXmltoJson_Click;
             // 
             // ToolStripMenuMakeWavFromText
             // 
             ToolStripMenuMakeWavFromText.Name = "ToolStripMenuMakeWavFromText";
             ToolStripMenuMakeWavFromText.Size = new Size(289, 22);
             ToolStripMenuMakeWavFromText.Text = "テキストファイルから音声(WAV)作成";
+            ToolStripMenuMakeWavFromText.ToolTipText = resources.GetString("ToolStripMenuMakeWavFromText.ToolTipText");
             ToolStripMenuMakeWavFromText.Click += ToolStripMenuMakeWavFromText_Click;
             // 
             // ToolStripMenuOption
             // 
-            ToolStripMenuOption.DropDownItems.AddRange(new ToolStripItem[] { ToolStripMenuItemIsShowMsg, ToolStripMenuUseBatchOutput });
+            ToolStripMenuOption.DropDownItems.AddRange(new ToolStripItem[] { ToolStripMenuItemIsShowMsg, ToolStripMenuUseBatchOutput, ToolStripMenuReadDicOption });
             ToolStripMenuOption.Name = "ToolStripMenuOption";
             ToolStripMenuOption.Size = new Size(62, 20);
             ToolStripMenuOption.Text = "オプション";
@@ -593,15 +609,22 @@
             // 
             ToolStripMenuItemIsShowMsg.CheckOnClick = true;
             ToolStripMenuItemIsShowMsg.Name = "ToolStripMenuItemIsShowMsg";
-            ToolStripMenuItemIsShowMsg.Size = new Size(268, 22);
+            ToolStripMenuItemIsShowMsg.Size = new Size(357, 22);
             ToolStripMenuItemIsShowMsg.Text = "処理完了時にメッセージ表示";
             // 
             // ToolStripMenuUseBatchOutput
             // 
             ToolStripMenuUseBatchOutput.CheckOnClick = true;
             ToolStripMenuUseBatchOutput.Name = "ToolStripMenuUseBatchOutput";
-            ToolStripMenuUseBatchOutput.Size = new Size(268, 22);
+            ToolStripMenuUseBatchOutput.Size = new Size(357, 22);
             ToolStripMenuUseBatchOutput.Text = "個別処理でも一括処理の出力先を使用";
+            // 
+            // ToolStripMenuReadDicOption
+            // 
+            ToolStripMenuReadDicOption.CheckOnClick = true;
+            ToolStripMenuReadDicOption.Name = "ToolStripMenuReadDicOption";
+            ToolStripMenuReadDicOption.Size = new Size(357, 22);
+            ToolStripMenuReadDicOption.Text = "音声(WAV)作成前にデフォルト読み＆アクセント辞書を読込";
             // 
             // ToolStripMenuReadDctionary
             // 
@@ -614,7 +637,7 @@
             // 
             toolStripMenuReadDicDef.Name = "toolStripMenuReadDicDef";
             toolStripMenuReadDicDef.Size = new Size(186, 22);
-            toolStripMenuReadDicDef.Text = "デフォルト辞書を再読込";
+            toolStripMenuReadDicDef.Text = "デフォルト辞書を読込";
             toolStripMenuReadDicDef.Click += ToolStripMenuReadDicDefault_Click;
             // 
             // ToolStripMenuReadDicTxt
@@ -667,6 +690,15 @@
             buttonLogClear.UseVisualStyleBackColor = true;
             buttonLogClear.Click += ButtonLogClear_Click;
             // 
+            // textBoxSample
+            // 
+            textBoxSample.Location = new Point(31, 149);
+            textBoxSample.Name = "textBoxSample";
+            textBoxSample.Size = new Size(78, 23);
+            textBoxSample.TabIndex = 39;
+            textBoxSample.Text = "こんにちは、はじめまして、お元気ですか？";
+            textBoxSample.Visible = false;
+            // 
             // FormMain
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -674,6 +706,8 @@
             AutoScroll = true;
             BackColor = SystemColors.ControlDarkDark;
             ClientSize = new Size(1149, 566);
+            Controls.Add(textBoxSample);
+            Controls.Add(buttonSampleText);
             Controls.Add(buttonLogClear);
             Controls.Add(textBoxSearch);
             Controls.Add(checkBoxOnlyMoji);
@@ -768,5 +802,8 @@
         private ToolStripMenuItem ToolStripMenuOpenDictionary;
         private ToolStripMenuItem ToolStripMenuOpenDictDef;
         private ToolStripMenuItem ToolStripMenuOpenDictOther;
+        private ToolStripMenuItem ToolStripMenuReadDicOption;
+        private Button buttonSampleText;
+        private TextBox textBoxSample;
     }
 }

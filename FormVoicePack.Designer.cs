@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
             buttonOK = new Button();
             textBoxID = new TextBox();
             textBoxName = new TextBox();
@@ -44,6 +45,7 @@
             label5 = new Label();
             label6 = new Label();
             label7 = new Label();
+            toolTip1 = new ToolTip(components);
             SuspendLayout();
             // 
             // buttonOK
@@ -58,6 +60,7 @@
             buttonOK.TabIndex = 1;
             buttonOK.Text = "作成";
             buttonOK.TextImageRelation = TextImageRelation.TextBeforeImage;
+            toolTip1.SetToolTip(buttonOK, "出力先にボイスパックの圧縮(ZIP)ファイルを作成します。\r\n対象件数が多い場合、時間がかかり画面が固まりますがしばらくお待ち下さい。\r\n\r\n音声ファイル(FUZ)と辞書ファイルは空欄のままでも作成可能で、\r\n後から手動で追加することも可能です");
             buttonOK.UseVisualStyleBackColor = false;
             buttonOK.Click += ButtonOK_Click;
             // 
@@ -199,7 +202,7 @@
             label6.Name = "label6";
             label6.Size = new Size(212, 30);
             label6.TabIndex = 17;
-            label6.Text = "MCMのボイスパック一覧に表示される名前\r\n日本語も可";
+            label6.Text = "MCMのボイスパック一覧に表示される名前\r\n(日本語も可)";
             // 
             // label7
             // 
@@ -264,5 +267,6 @@
         private Label label5;
         private Label label6;
         private Label label7;
+        private ToolTip toolTip1;
     }
 }

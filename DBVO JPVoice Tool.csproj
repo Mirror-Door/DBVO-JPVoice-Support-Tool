@@ -6,8 +6,8 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyVersion>2.5.0.1</AssemblyVersion>
-    <FileVersion>2.5.0.1</FileVersion>
+    <AssemblyVersion>2.5.5.0</AssemblyVersion>
+    <FileVersion>2.5.5.0</FileVersion>
     <AssemblyName>DBVO JPVoice Support Tool</AssemblyName>
   </PropertyGroup>
 
