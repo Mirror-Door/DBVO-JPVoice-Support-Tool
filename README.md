@@ -1,7 +1,7 @@
 ## 概要
 音声合成ソフト（VOICEVOX、COEIROINK、Style-Bert-VITS2）と連携して、  
 「Dragonborn Voice Over」の日本語ボイスパックを好きな声でなるべく簡単に作成するための補助ツールです。
-## ダウンロード
+### ダウンロード
 https://github.com/Mirror-Door/DBVO-JPVoice-Support-Tool/releases/tag/Latest
 ## 前提
 ### NET Runtime 6以上(起動しない場合は導入してください)
