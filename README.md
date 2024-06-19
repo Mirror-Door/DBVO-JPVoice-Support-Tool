@@ -7,11 +7,11 @@ https://github.com/Mirror-Door/DBVO-JPVoice-Support-Tool/releases/tag/Latest
 初めて導入する方は上にある「DefaultDictionary.csv」をダウンロードしてexeと同じフォルダに入れてください。
   
 ## 前提
-### NET Runtime 6以上(起動しない場合は導入してください)
+### 0.NET Runtime 6以上(起動しない場合は導入してください)
 https://dotnet.microsoft.com/ja-jp/download/dotnet/6.0  
 上記URLの右側の一番下「.NET Runtime 6.X.XX」のインストーラーでインストール
 
-### 音声合成ソフト(どれか一つまたは全て)
+### 1.音声合成ソフト(どれか一つまたは全て)
 * VOICEVOX
 https://voicevox.hiroshiba.jp/
 * COEIROINK
@@ -21,7 +21,7 @@ https://coeiroink.com/
 * Style-Bert-VITS2
 https://github.com/litagin02/Style-Bert-VITS2  
 どちらかというと玄人向けですが、無料で使用することができ、高品質の音声を作成したり学習もできます。
-### FaceFXWrapper(口パク用のLIPファイル作成に必要)
+### 2.FaceFXWrapper(口パク用のLIPファイル作成に必要)
 https://github.com/Nukem9/FaceFXWrapper  
 ネクサスにもありますがこちらのほうがバージョンが新しいです。  
 お好きな場所に展開してください。
@@ -30,7 +30,7 @@ https://github.com/Nukem9/FaceFXWrapper
 https://www.nexusmods.com/skyrimspecialedition/mods/40971  
 または https://www.nexusmods.com/newvegas/mods/61248  
 または DBVO作者のMathiewMay様のDiscordのページ
-### Yakitori Audio Converter(FUZファイルの作成に必要)
+### 3.Yakitori Audio Converter(FUZファイルの作成に必要)
 https://www.nexusmods.com/skyrimspecialedition/mods/17765  
 Main filesとOptional filesどちらも必要となります。  
 お好きな場所に展開してください。  
@@ -59,7 +59,8 @@ http://itvoice.starfree.jp/
 
 ## 使い方
 DBVO JPVoice Tool.exeを起動してください。各ボタンにカーソルを合わせると説明がでます。  
-使いたい音声合成ソフトを起動してください(キャラクターの取得や音声(WAV)ファイルの作成のために必要になります)
+使いたい音声合成ソフトを起動してください(キャラクターの取得や音声(WAV)ファイルの作成のために必要になります)  
+v.2.6.0.0からは「Voicevox」「Coeiroink」はキャラ取得時に、自動的に起動します。  
 ### 基本的な流れ
 * <バニラ音声の場合>
 1. 音声合成ソフトを選んで「キャラ取得」ボタン → 好きなキャラクターを選ぶ → 「辞書(JSON)→音声(WAV)」ボタンを押す
