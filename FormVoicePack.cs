@@ -90,6 +90,7 @@ namespace DBVO_JPVoice_Tool
                 { return; }
             }
 
+            if (Directory.Exists(strOutput)) { Directory.Delete(strOutput, true); }
             if (!Directory.Exists(strDBVOPath)) { Directory.CreateDirectory(strDBVOPath); }
             if (!Directory.Exists(strSoundPath)) { Directory.CreateDirectory(strSoundPath); }
 
@@ -125,12 +126,25 @@ namespace DBVO_JPVoice_Tool
 
             if (textBoxFuz.Text != string.Empty)
             {
-                foreach (string file in Directory.GetFiles(textBoxFuz.Text))
+                void getFuzFile(string _path)
                 {
-                    if (Path.GetExtension(file) is ".fuz")
+                    foreach (string file in Directory.GetFiles(_path))
                     {
-                        File.Copy(file, $@"{strSoundIDPath}\{Path.GetFileName(file)}");
+                        if (Path.GetExtension(file) is ".fuz")
+                        {
+                            if (!File.Exists($@"{strSoundIDPath}\{Path.GetFileName(file)}"))
+                            {
+                                File.Copy(file, $@"{strSoundIDPath}\{Path.GetFileName(file)}");
+                            }
+                        }
                     }
+                }
+                getFuzFile(textBoxFuz.Text);
+
+                var strArrDir = Directory.GetDirectories(textBoxFuz.Text);
+                foreach (var strDir in strArrDir)
+                {
+                    getFuzFile(strDir);
                 }
             }
 

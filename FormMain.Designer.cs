@@ -37,6 +37,7 @@
             progressBar1 = new ProgressBar();
             labelProgress = new Label();
             groupBox2 = new GroupBox();
+            buttonYakitoriFind = new Button();
             labelYakitori = new Label();
             buttonYakitoriOpen = new Button();
             textBoxYakitoriPath = new TextBox();
@@ -54,6 +55,7 @@
             buttonBatchAll = new Button();
             checkBoxOnlyMoji = new CheckBox();
             buttonSampleText = new Button();
+            buttonFaceFXFind = new Button();
             groupBox3 = new GroupBox();
             labelFaceFX = new Label();
             textBoxFaceFXPath = new TextBox();
@@ -74,8 +76,8 @@
             ToolStripMenuMakeWavFromText = new ToolStripMenuItem();
             ToolStripMenuOption = new ToolStripMenuItem();
             ToolStripMenuItemIsShowMsg = new ToolStripMenuItem();
-            ToolStripMenuUseBatchOutput = new ToolStripMenuItem();
             ToolStripMenuReadDicOption = new ToolStripMenuItem();
+            ToolStripMenuItemIsSkipMode = new ToolStripMenuItem();
             ToolStripMenuReadDctionary = new ToolStripMenuItem();
             toolStripMenuReadDicDef = new ToolStripMenuItem();
             ToolStripMenuReadDicTxt = new ToolStripMenuItem();
@@ -85,6 +87,10 @@
             textBoxSearch = new TextBox();
             buttonLogClear = new Button();
             textBoxSample = new TextBox();
+            labelAllProgress = new Label();
+            progressBar2 = new ProgressBar();
+            textBoxVoicevoxPath = new TextBox();
+            textBoxCoeiroinkPath = new TextBox();
             groupBox2.SuspendLayout();
             groupBox3.SuspendLayout();
             groupBox4.SuspendLayout();
@@ -103,7 +109,7 @@
             listBoxLog.ItemHeight = 15;
             listBoxLog.Location = new Point(392, 48);
             listBoxLog.Name = "listBoxLog";
-            listBoxLog.Size = new Size(745, 484);
+            listBoxLog.Size = new Size(745, 514);
             listBoxLog.TabIndex = 1;
             listBoxLog.Leave += ListBoxLog_Leave;
             // 
@@ -151,9 +157,9 @@
             // progressBar1
             // 
             progressBar1.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            progressBar1.Location = new Point(8, 536);
+            progressBar1.Location = new Point(8, 574);
             progressBar1.Name = "progressBar1";
-            progressBar1.Size = new Size(332, 23);
+            progressBar1.Size = new Size(372, 23);
             progressBar1.Style = ProgressBarStyle.Continuous;
             progressBar1.TabIndex = 16;
             progressBar1.Visible = false;
@@ -164,7 +170,7 @@
             labelProgress.AutoSize = true;
             labelProgress.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
             labelProgress.ForeColor = SystemColors.ControlLightLight;
-            labelProgress.Location = new Point(12, 516);
+            labelProgress.Location = new Point(12, 556);
             labelProgress.Name = "labelProgress";
             labelProgress.Size = new Size(93, 15);
             labelProgress.TabIndex = 17;
@@ -173,6 +179,7 @@
             // 
             // groupBox2
             // 
+            groupBox2.Controls.Add(buttonYakitoriFind);
             groupBox2.Controls.Add(labelYakitori);
             groupBox2.Controls.Add(buttonYakitoriOpen);
             groupBox2.Controls.Add(textBoxYakitoriPath);
@@ -185,6 +192,18 @@
             groupBox2.TabIndex = 18;
             groupBox2.TabStop = false;
             groupBox2.Text = "Yakitori Audio Converter";
+            // 
+            // buttonYakitoriFind
+            // 
+            buttonYakitoriFind.ForeColor = SystemColors.ActiveCaptionText;
+            buttonYakitoriFind.Location = new Point(39, 50);
+            buttonYakitoriFind.Name = "buttonYakitoriFind";
+            buttonYakitoriFind.Size = new Size(69, 23);
+            buttonYakitoriFind.TabIndex = 43;
+            buttonYakitoriFind.Text = "自動検出";
+            toolTip.SetToolTip(buttonYakitoriFind, "「Yakitori Audio Converter」のインストールフォルダを自動検出します。\r\n下記の2つのファイルがあるフォルダを探します。場合によっては時間がかかる可能性があります。\r\nxWMAEncode.exe\r\nBmlFuzEncode.exe\r\n");
+            buttonYakitoriFind.UseVisualStyleBackColor = true;
+            buttonYakitoriFind.Click += ButtonYakitoriFind_Click;
             // 
             // labelYakitori
             // 
@@ -327,7 +346,7 @@
             buttonGetChar.Size = new Size(69, 23);
             buttonGetChar.TabIndex = 31;
             buttonGetChar.Text = "キャラ取得";
-            toolTip.SetToolTip(buttonGetChar, "選択された音声合成ソフトのキャラクターの一覧を取得します\r\n事前に音声合成ソフトを起動していないと取得に失敗します");
+            toolTip.SetToolTip(buttonGetChar, "選択された音声合成ソフトのキャラクターの一覧を取得します\r\n音声合成ソフトが起動されていない場合は、PC内を検索し起動を試みます。\r\n起動に成功した場合、キャッシュされ、次回からはより速く起動することができます。");
             buttonGetChar.UseVisualStyleBackColor = true;
             buttonGetChar.Click += ButtonGetCharList_Click;
             // 
@@ -348,7 +367,7 @@
             buttonProcCancel.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             buttonProcCancel.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
             buttonProcCancel.Image = Properties.Resources.Cancel;
-            buttonProcCancel.Location = new Point(346, 536);
+            buttonProcCancel.Location = new Point(300, 504);
             buttonProcCancel.Name = "buttonProcCancel";
             buttonProcCancel.Size = new Size(80, 23);
             buttonProcCancel.TabIndex = 33;
@@ -371,7 +390,7 @@
             buttonBatchAll.TabIndex = 33;
             buttonBatchAll.Text = "WAV/LIP/FUZ 一括処理";
             buttonBatchAll.TextImageRelation = TextImageRelation.TextBeforeImage;
-            toolTip.SetToolTip(buttonBatchAll, "機能：\r\nLIPファイル作成→FUZファイル変換(下記の2つのボタンの機能)を一括で行います\r\n「WAV→LIPファイルを作成」\r\n「WAV→FUZファイルへ変換」\r\nLIPファイルはWAVフォルダと同じフォルダ、FUZファイルは出力先フォルダに出力されます。\r\n\r\nファイルの使用用途：\r\n生成されたFUZをボイスパックに含めるとダイアログ選択時に口パクありで音声が出るようになります。");
+            toolTip.SetToolTip(buttonBatchAll, "機能：\r\nWAV→LIP→FUZファイル(下記の3つのボタンの機能)を一括で行います\r\n「辞書(JSON)→音声(WAV)」\r\n「WAV→LIPファイルを作成」\r\n「WAV→FUZファイルへ変換」\r\nすべてのファイルは出力先フォルダに出力されます。\r\n\r\nファイルの使用用途：\r\n生成されたFUZをボイスパックに含めるとダイアログ選択時に口パクありで音声が出るようになります。");
             buttonBatchAll.UseVisualStyleBackColor = false;
             buttonBatchAll.Click += ButtonBatchAll_Click;
             // 
@@ -404,8 +423,21 @@
             buttonSampleText.UseVisualStyleBackColor = true;
             buttonSampleText.Click += ButtonSampleText_Click;
             // 
+            // buttonFaceFXFind
+            // 
+            buttonFaceFXFind.ForeColor = SystemColors.ActiveCaptionText;
+            buttonFaceFXFind.Location = new Point(39, 49);
+            buttonFaceFXFind.Name = "buttonFaceFXFind";
+            buttonFaceFXFind.Size = new Size(68, 23);
+            buttonFaceFXFind.TabIndex = 23;
+            buttonFaceFXFind.Text = "自動検出";
+            toolTip.SetToolTip(buttonFaceFXFind, "「FaceFXWrapper」のインストールフォルダを自動検出します。\r\n下記の2つのファイルがあるフォルダを探します。場合によっては時間がかかる可能性があります。\r\n・FaceFXWrapper.exe\r\n・FonixData.cdf");
+            buttonFaceFXFind.UseVisualStyleBackColor = true;
+            buttonFaceFXFind.Click += ButtonFaceFXFind_Click;
+            // 
             // groupBox3
             // 
+            groupBox3.Controls.Add(buttonFaceFXFind);
             groupBox3.Controls.Add(labelFaceFX);
             groupBox3.Controls.Add(buttonFaceFXOpen);
             groupBox3.Controls.Add(textBoxFaceFXPath);
@@ -465,9 +497,9 @@
             label5.ForeColor = SystemColors.ControlLightLight;
             label5.Location = new Point(6, 200);
             label5.Name = "label5";
-            label5.Size = new Size(136, 15);
+            label5.Size = new Size(43, 15);
             label5.TabIndex = 32;
-            label5.Text = "一括処理のファイル出力先";
+            label5.Text = "出力先";
             // 
             // textBoxBatch
             // 
@@ -549,7 +581,7 @@
             buttonLogSave.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             buttonLogSave.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
             buttonLogSave.Image = Properties.Resources.Save;
-            buttonLogSave.Location = new Point(1057, 538);
+            buttonLogSave.Location = new Point(1057, 575);
             buttonLogSave.Name = "buttonLogSave";
             buttonLogSave.Size = new Size(80, 23);
             buttonLogSave.TabIndex = 34;
@@ -600,7 +632,7 @@
             // 
             // ToolStripMenuOption
             // 
-            ToolStripMenuOption.DropDownItems.AddRange(new ToolStripItem[] { ToolStripMenuItemIsShowMsg, ToolStripMenuUseBatchOutput, ToolStripMenuReadDicOption });
+            ToolStripMenuOption.DropDownItems.AddRange(new ToolStripItem[] { ToolStripMenuItemIsShowMsg, ToolStripMenuReadDicOption, ToolStripMenuItemIsSkipMode });
             ToolStripMenuOption.Name = "ToolStripMenuOption";
             ToolStripMenuOption.Size = new Size(62, 20);
             ToolStripMenuOption.Text = "オプション";
@@ -612,19 +644,20 @@
             ToolStripMenuItemIsShowMsg.Size = new Size(357, 22);
             ToolStripMenuItemIsShowMsg.Text = "処理完了時にメッセージ表示";
             // 
-            // ToolStripMenuUseBatchOutput
-            // 
-            ToolStripMenuUseBatchOutput.CheckOnClick = true;
-            ToolStripMenuUseBatchOutput.Name = "ToolStripMenuUseBatchOutput";
-            ToolStripMenuUseBatchOutput.Size = new Size(357, 22);
-            ToolStripMenuUseBatchOutput.Text = "個別処理でも一括処理の出力先を使用";
-            // 
             // ToolStripMenuReadDicOption
             // 
             ToolStripMenuReadDicOption.CheckOnClick = true;
             ToolStripMenuReadDicOption.Name = "ToolStripMenuReadDicOption";
             ToolStripMenuReadDicOption.Size = new Size(357, 22);
             ToolStripMenuReadDicOption.Text = "音声(WAV)作成前にデフォルト読み＆アクセント辞書を読込";
+            // 
+            // ToolStripMenuItemIsSkipMode
+            // 
+            ToolStripMenuItemIsSkipMode.CheckOnClick = true;
+            ToolStripMenuItemIsSkipMode.Name = "ToolStripMenuItemIsSkipMode";
+            ToolStripMenuItemIsSkipMode.Size = new Size(357, 22);
+            ToolStripMenuItemIsSkipMode.Text = "スキップモード";
+            ToolStripMenuItemIsSkipMode.ToolTipText = "WAV、LIP、FUZファイル作成時に、\r\n既に同名のファイルが存在する場合、そのファイルの作成をスキップします";
             // 
             // ToolStripMenuReadDctionary
             // 
@@ -681,7 +714,7 @@
             buttonLogClear.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             buttonLogClear.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
             buttonLogClear.Image = Properties.Resources.ClearWindowContent;
-            buttonLogClear.Location = new Point(971, 538);
+            buttonLogClear.Location = new Point(971, 575);
             buttonLogClear.Name = "buttonLogClear";
             buttonLogClear.Size = new Size(80, 23);
             buttonLogClear.TabIndex = 37;
@@ -699,13 +732,56 @@
             textBoxSample.Text = "こんにちは、はじめまして、お元気ですか？";
             textBoxSample.Visible = false;
             // 
+            // labelAllProgress
+            // 
+            labelAllProgress.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            labelAllProgress.AutoSize = true;
+            labelAllProgress.Font = new Font("Yu Gothic UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
+            labelAllProgress.ForeColor = SystemColors.ControlLightLight;
+            labelAllProgress.Location = new Point(12, 515);
+            labelAllProgress.Name = "labelAllProgress";
+            labelAllProgress.Size = new Size(65, 15);
+            labelAllProgress.TabIndex = 40;
+            labelAllProgress.Text = "全体の進捗";
+            labelAllProgress.Visible = false;
+            // 
+            // progressBar2
+            // 
+            progressBar2.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            progressBar2.Location = new Point(8, 531);
+            progressBar2.Name = "progressBar2";
+            progressBar2.Size = new Size(372, 23);
+            progressBar2.Style = ProgressBarStyle.Continuous;
+            progressBar2.TabIndex = 42;
+            progressBar2.Visible = false;
+            // 
+            // textBoxVoicevoxPath
+            // 
+            textBoxVoicevoxPath.Location = new Point(614, 574);
+            textBoxVoicevoxPath.Name = "textBoxVoicevoxPath";
+            textBoxVoicevoxPath.Size = new Size(78, 23);
+            textBoxVoicevoxPath.TabIndex = 43;
+            textBoxVoicevoxPath.Visible = false;
+            // 
+            // textBoxCoeiroinkPath
+            // 
+            textBoxCoeiroinkPath.Location = new Point(708, 574);
+            textBoxCoeiroinkPath.Name = "textBoxCoeiroinkPath";
+            textBoxCoeiroinkPath.Size = new Size(78, 23);
+            textBoxCoeiroinkPath.TabIndex = 44;
+            textBoxCoeiroinkPath.Visible = false;
+            // 
             // FormMain
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             AutoScroll = true;
             BackColor = SystemColors.ControlDarkDark;
-            ClientSize = new Size(1149, 566);
+            ClientSize = new Size(1149, 603);
+            Controls.Add(textBoxCoeiroinkPath);
+            Controls.Add(textBoxVoicevoxPath);
+            Controls.Add(progressBar2);
+            Controls.Add(labelAllProgress);
             Controls.Add(textBoxSample);
             Controls.Add(buttonSampleText);
             Controls.Add(buttonLogClear);
@@ -794,7 +870,6 @@
         private ToolStripMenuItem ToolStripMenuItemIsShowMsg;
         private Button buttonBatchAll;
         private Button buttonLogClear;
-        private ToolStripMenuItem ToolStripMenuUseBatchOutput;
         private ToolStripMenuItem ToolStripMenuXmltoJson;
         private ToolStripMenuItem ToolStripMenuReadDctionary;
         private ToolStripMenuItem toolStripMenuReadDicDef;
@@ -805,5 +880,12 @@
         private ToolStripMenuItem ToolStripMenuReadDicOption;
         private Button buttonSampleText;
         private TextBox textBoxSample;
+        private Label labelAllProgress;
+        private ProgressBar progressBar2;
+        private Button buttonYakitoriFind;
+        private Button buttonFaceFXFind;
+        private TextBox textBoxVoicevoxPath;
+        private TextBox textBoxCoeiroinkPath;
+        private ToolStripMenuItem ToolStripMenuItemIsSkipMode;
     }
 }

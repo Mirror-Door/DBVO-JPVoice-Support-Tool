@@ -34,6 +34,7 @@ namespace DBVO_JPVoice_Tool
         protected static readonly HttpClient httpClient = new();
 
         public virtual string? Name { get; }
+        public virtual string? ExeName { get; }
         public virtual string? ColumNameStyles { get; }
         public virtual string? ColumNameStyleId { get; }
         public virtual string? ColumNameStyleName { get; }
@@ -209,6 +210,7 @@ namespace DBVO_JPVoice_Tool
     {
         private const int DefaultPort = 50021;
         public override string Name => "VOICEVOX";
+        public override string ExeName => "VOICEVOX.exe";
         public override string ColumNameStyles => "styles";
         public override string ColumNameStyleId => "id";
         public override string ColumNameStyleName => "name";
@@ -385,6 +387,7 @@ namespace DBVO_JPVoice_Tool
         private const int DefaultPort = 50032;
 
         public override string Name => "COEIROINK";
+        public override string ExeName => "COEIROINKv2.exe"; 
         public override string ColumNameStyles => "styles";
         public override string ColumNameStyleId => "styleId";
         public override string ColumNameStyleName => "styleName";
