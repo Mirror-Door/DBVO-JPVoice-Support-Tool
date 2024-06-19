@@ -1,8 +1,11 @@
 ## 概要
 音声合成ソフト（VOICEVOX、COEIROINK、Style-Bert-VITS2）と連携して、  
 「Dragonborn Voice Over」の日本語ボイスパックを好きな声でなるべく簡単に作成するための補助ツールです。
-### ダウンロード
-https://github.com/Mirror-Door/DBVO-JPVoice-Support-Tool/releases/tag/Latest
+### 最新版ダウンロード
+https://github.com/Mirror-Door/DBVO-JPVoice-Support-Tool/releases/tag/Latest  
+※v.2.6.0.0から読み＆アクセント辞書は含まれないため、  
+初めて導入する方は上にある「DefaultDictionary.csv」をダウンロードしてexeと同じフォルダに入れてください。
+  
 ## 前提
 ### NET Runtime 6以上(起動しない場合は導入してください)
 https://dotnet.microsoft.com/ja-jp/download/dotnet/6.0  
@@ -126,8 +129,13 @@ ver.2.5.0.0より本ツールから辞書を読み込めるようになりまし
 COEIROINKのキャラ取得時に大量のメモリを使用するのでその対処→ボタンを連打させない、都度メモリを解放  
 コードのリファクタリング、バグの修正  
   
-バグ、要望がない限りはこのバージョンで一旦完了とします。  
-(読み＆アクセント辞書はアップデートするかもしれません)    
+2024/06/19 ver.2.6.0.0 機能追加  
+オプションに「スキップモード」を追加 ： 従来、上書きモードしかなかったため、出力先に同名のファイルがあっても再度作成し直していたが、  
+スキップモードでは作成をスキップすることができる。このモードにより大量のデータを途中で処理中止した場合に中断したところからやり直すことが可能となる。  
+出力先のオプションを廃止→出力先を必須として、全ての処理を出力先に指定されたフォルダに出力するように変更  
+「FaceFXWrapper」「Yakitori Audio Converter」のパスを自動検出する機能（ボタン）追加  
+「Voicevox」「Coeiroink」が起動していない場合、キャラ取得ボタン押下時に自動検出して起動する機能を追加  
+WAV、LIP、FUZファイル作成時の処理の進捗をよりわかりやすく変更  
   
 ## クレジット
 MathiewMay様 「Dragonborn Voice Over」の作者様  
